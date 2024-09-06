@@ -8,6 +8,64 @@ const { passwordUpdated } = require("../mail/templates/passwordUpdate")
 const Profile = require("../models/Profile")
 require("dotenv").config()
 
+const { OAuth2Client } = require('google-auth-library');
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Continue with google
+
+exports.googleauth = async (req, res) => {
+  try{
+    const { token } = req.body;
+    const ticket = await client.verifyIdToken({
+    idToken: token,
+    audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { email_verified, name, firstName, lastName, email, picture } = ticket.getPayload();
+
+    if (!email_verified) {
+      return res.status(401).json({
+          success: "false",
+          message: "Email not varified.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    // now if user exists --> let user log in
+
+    if (user) {
+      return res.status(201).json({
+        data: user,
+        success: "true",
+        message: "Login with google successful.",
+      })
+
+    } else {
+      // else create new user
+      const password = email + process.env.GOOGLE_SECRET;
+
+      const newUser = new User({
+        firstName,
+        lastName, 
+        name,
+        email,
+        password,
+        image: picture,
+      });
+
+      await newUser.save();
+    }
+  }catch(error){
+    console.error(error)
+    return res.status(500).json({
+      success: false,
+      message: "Google Signin failed!",
+    })
+  }
+}
+
 // Signup Controller for Registering USers
 
 exports.signup = async (req, res) => {
