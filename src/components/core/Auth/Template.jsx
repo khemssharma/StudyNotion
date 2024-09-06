@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import frameImg from '../../../assets/Images/frame.png';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
+import { googleOauth } from "../../../services/operations/authAPI"
 
 function Template({ title, description1, description2, image, formType }) {
   const { loading } = useSelector((state) => state.auth);
@@ -11,7 +12,7 @@ function Template({ title, description1, description2, image, formType }) {
   const handleGoogleSignIn = useGoogleLogin({
     onSuccess: (response) => {
       console.log('Google login successful', response);
-      // Send response to your backend for further processing
+      googleOauth()
     },
     onError: () => {
       console.error('Login failed');
