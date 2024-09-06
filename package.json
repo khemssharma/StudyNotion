@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@ramonak/react-progress-bar": "^5.0.3",
+    "@react-oauth/google": "^0.12.1",
     "@reduxjs/toolkit": "^1.9.5",
     "axios": "^1.4.0",
     "chart.js": "^4.4.1",
