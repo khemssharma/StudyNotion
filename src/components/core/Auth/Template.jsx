@@ -1,12 +1,22 @@
-import { FcGoogle } from "react-icons/fc"
-import { useSelector } from "react-redux"
-
-import frameImg from "../../../assets/Images/frame.png"
-import LoginForm from "./LoginForm"
-import SignupForm from "./SignupForm"
+import { useGoogleLogin } from '@react-oauth/google';
+import { FcGoogle } from 'react-icons/fc';
+import { useSelector } from 'react-redux';
+import frameImg from '../../../assets/Images/frame.png';
+import LoginForm from './LoginForm';
+import SignupForm from './SignupForm';
 
 function Template({ title, description1, description2, image, formType }) {
-  const { loading } = useSelector((state) => state.auth)
+  const { loading } = useSelector((state) => state.auth);
+
+  const handleGoogleSignIn = useGoogleLogin({
+    onSuccess: (response) => {
+      console.log('Google login successful', response);
+      // Send response to your backend for further processing
+    },
+    onError: () => {
+      console.error('Login failed');
+    },
+  });
 
   return (
     <div className="grid min-h-[calc(100vh-3.5rem)] place-items-center">
@@ -19,12 +29,21 @@ function Template({ title, description1, description2, image, formType }) {
               {title}
             </h1>
             <p className="mt-4 text-[1.125rem] leading-[1.625rem]">
-              <span className="text-richblack-100">{description1}</span>{" "}
+              <span className="text-richblack-100">{description1}</span>{' '}
               <span className="font-edu-sa font-bold italic text-blue-100">
                 {description2}
               </span>
             </p>
-            {formType === "signup" ? <SignupForm /> : <LoginForm />}
+
+            {/* Continue with Google Button */}
+            <button
+              onClick={() => handleGoogleSignIn()}
+              className="flex items-center justify-center w-full mt-4 mb-4 py-2 bg-white border border-gray-300 rounded-lg text-black shadow-md hover:bg-gray-100"
+            >
+              <FcGoogle className="mr-2" /> Continue with Google
+            </button>
+
+            {formType === 'signup' ? <SignupForm /> : <LoginForm />}
           </div>
           <div className="relative mx-auto w-11/12 max-w-[450px] md:mx-0">
             <img
@@ -46,7 +65,7 @@ function Template({ title, description1, description2, image, formType }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default Template
+export default Template;

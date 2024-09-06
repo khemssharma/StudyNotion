@@ -5,14 +5,20 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema(
 	{
 		// Define the name field with type String, required, and trimmed
+		
 		firstName: {
 			type: String,
-			required: true,
+			required:true,
 			trim: true,
 		},
 		lastName: {
 			type: String,
-			required: true,
+			required:true,
+			trim: true,
+		},
+		name: {
+			// for googleauth only
+			type: String,
 			trim: true,
 		},
 		// Define the email field with type String, required, and trimmed
@@ -21,17 +27,18 @@ const userSchema = new mongoose.Schema(
 			required: true,
 			trim: true,
 		},
-
+		
 		// Define the password field with type String and required
 		password: {
 			type: String,
-			required: true,
 		},
 		// Define the role field with type String and enum values of "Admin", "Student", or "Visitor"
 		accountType: {
 			type: String,
 			enum: ["Admin", "Student", "Instructor"],
-			required: true,
+			default: "Student",
+			// for testing only required is commented down.
+			// required: true, 
 		},
 		active: {
 			type: Boolean,
