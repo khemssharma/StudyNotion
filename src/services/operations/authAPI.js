@@ -10,6 +10,7 @@ const {
   SENDOTP_API,
   SIGNUP_API,
   LOGIN_API,
+  GOOGLE_AUTH,
   RESETPASSTOKEN_API,
   RESETPASSWORD_API,
 } = endpoints
@@ -118,6 +119,10 @@ export function login(email, password, navigate) {
   }
 }
 
+export function googleOauth(){
+
+}
+
 export function logout(navigate) {
   return (dispatch) => {
     dispatch(setToken(null))
@@ -129,8 +134,6 @@ export function logout(navigate) {
     navigate("/")
   }
 }
-
-
 
 export function getPasswordResetToken(email , setEmailSent) {
   return async(dispatch) => {

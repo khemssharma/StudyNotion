@@ -10,6 +10,8 @@ import { Toaster } from "react-hot-toast";
 
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID
+
 const store = configureStore({
   reducer:rootReducer,
 });
@@ -19,7 +21,7 @@ root.render(
   <React.StrictMode>
   <Provider store = {store}>
     <BrowserRouter>
-      <GoogleOAuthProvider clientId="15702441501-ja73diekukrtqkbr2jeoo70n47n4d8gn.apps.googleusercontent.com">
+      <GoogleOAuthProvider clientId= {GOOGLE_CLIENT_ID}>
         <App />
       </GoogleOAuthProvider>
      <Toaster/>
