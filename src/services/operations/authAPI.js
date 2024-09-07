@@ -119,8 +119,36 @@ export function login(email, password, navigate) {
   }
 }
 
-export function googleOauth(){
+export function googleOauth(response, navigate){
+  return async (dispatch) => {
+    const toastId = toast.loading("Loading...")
+    dispatch(setLoading(true))
+    try {
+      const GAPIresponse = await apiConnector("POST", GOOGLE_AUTH, {response})
 
+      console.log("GOOGLE_AUTH API RESPONSE............", GAPIresponse)
+
+      if (!response.data.success) {
+        throw new Error(response.data.message)
+      }
+
+      toast.success("Login Successful")
+      dispatch(setToken(response.data.token))
+      const userImage = response.data?.user?.image
+        ? response.data.user.image
+        : `https://api.dicebear.com/5.x/initials/svg?seed=${response.data.user.firstName} ${response.data.user.lastName}`
+      dispatch(setUser({ ...response.data.user, image: userImage }))
+      
+      localStorage.setItem("token", JSON.stringify(response.data.token))
+      localStorage.setItem("user", JSON.stringify(response.data.user))
+      navigate("/dashboard/my-profile")
+    } catch (error) {
+      console.log("LOGIN API ERROR............", error)
+      toast.error(error.response.data.message)
+    }
+    dispatch(setLoading(false))
+    toast.dismiss(toastId)
+  }
 }
 
 export function logout(navigate) {

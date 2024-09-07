@@ -7,61 +7,119 @@ const mailSender = require("../utils/mailSender")
 const { passwordUpdated } = require("../mail/templates/passwordUpdate")
 const Profile = require("../models/Profile")
 require("dotenv").config()
-
-const { OAuth2Client } = require('google-auth-library');
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const { OAuth2Client } = require('google-auth-library'); //OAuth2Client by google-auth-library
 
 // Continue with google
 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); //generate new OAuth2Client 
+// your authentication logic
 exports.googleauth = async (req, res) => {
   try{
-    const { token } = req.body;
+    // fetch token from UI requset 
+    const  token  = req.body.response
+    console.log(token)
+    // generate ticket by Oauth2client
     const ticket = await client.verifyIdToken({
-    idToken: token,
-    audience: process.env.GOOGLE_CLIENT_ID,
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
-
+    // get data from payload of ticket
     const { email_verified, name, firstName, lastName, email, picture } = ticket.getPayload();
-
+    // failure in case email not google varified
     if (!email_verified) {
-      return res.status(401).json({
-          success: "false",
-          message: "Email not varified.",
-      });
-    }
-
-    const user = await User.findOne({ email });
-
-    // now if user exists --> let user log in
-
-    if (user) {
-      return res.status(201).json({
-        data: user,
-        success: "true",
-        message: "Login with google successful.",
+      return res.status(400).json({
+          sucess:false,
+          message:"Email_varified: false"
       })
-
-    } else {
-      // else create new user
-      const password = email + process.env.GOOGLE_SECRET;
-
-      const newUser = new User({
-        firstName,
-        lastName, 
-        name,
-        email,
-        password,
-        image: picture,
-      });
-
-      await newUser.save();
     }
-  }catch(error){
+    // find if user exist by this email
+    const user = await User.findOne({ email });
+    // if user exist by this email --> sign in i.e. generate jwt token
+    if (user) {
+      const token = jwt.sign(
+        { email: user.email, id: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "24h",
+        }
+      )
+      // SAVE token to user document in database
+      user.token = token
+      user.password = undefined
+      // Set options for cookie like expiry
+      const options = {
+        expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+      }
+      //  return cookie successfuly
+      res.cookie("token", token, options).status(200).json({
+        success: true,
+        token,
+        user,
+        message: `User Login Success`,
+      })
+    } else {
+        // email does not exist --> sign up i.e generate user in your DB --> Generate JWT token
+        // --> generate user in your DB.
+        const password = email + process.env.GOOGLE_SECRET; // generate automatic password by google
+        // Create the user
+        let approved = ""
+        approved === "Instructor" ? (approved = false) : (approved = true)
+
+        // Create the Additional Profile For User
+        const profileDetails = await Profile.create({
+          gender: null,
+          dateOfBirth: null,
+          about: null,
+          contactNumber: null,
+        })
+        const user = await User.create({
+          firstName : firstName,
+          lastName : lastName,
+          name: name,
+          email : email,
+          password : password,
+          accountType: "Student",
+          approved: approved,
+          additionalDetails: profileDetails._id,
+          image: picture,
+        })
+
+        //  --> Generate JWT token i.e Login the user.
+    
+        const token = jwt.sign(
+          { email: user.email, id: user._id, role: user.role },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "24h",
+          }
+        )
+        // SAVE token to user document in database
+        user.token = token
+        user.password = undefined
+        // Set options for cookie like expiry
+        const options = {
+          expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          httpOnly: true,
+        }
+        //  return cookie successfuly
+        res.cookie("token", token, options).status(200).json({
+          success: true,
+          token,
+          user,
+          message: `User Login Success`,
+        })
+        return res.status(200).json({
+          success: true,
+          user,
+          message: "User registered successfully and login successful by Google!!",
+        })
+        }
+    }catch(error){
     console.error(error)
     return res.status(500).json({
       success: false,
-      message: "Google Signin failed!",
+      message: "Continue with Google failed unexpectedly!",
     })
   }
 }
@@ -197,7 +255,7 @@ exports.login = async (req, res) => {
       })
     }
 
-    // Generate JWT token and Compare Password
+    //  Compare Password Generate JWT token and
     if (await bcrypt.compare(password, user.password)) {
       const token = jwt.sign(
         { email: user.email, id: user._id, role: user.role },

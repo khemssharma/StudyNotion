@@ -5,17 +5,21 @@ import frameImg from '../../../assets/Images/frame.png';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import { googleOauth } from "../../../services/operations/authAPI"
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 
 function Template({ title, description1, description2, image, formType }) {
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
   const { loading } = useSelector((state) => state.auth);
 
   const handleGoogleSignIn = useGoogleLogin({
-    onSuccess: (response) => {
-      console.log('Google login successful', response);
-      googleOauth()
+    onSuccess: (response) => { 
+      console.log('Google login successful, token: ', response);
+      dispatch(googleOauth(response, navigate));
     },
     onError: () => {
-      console.error('Login failed');
+      console.error('Google login failed');
     },
   });
 
