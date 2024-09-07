@@ -119,14 +119,14 @@ export function login(email, password, navigate) {
   }
 }
 
-export function googleOauth(response, navigate){
+export function googleOauth(gapiresponse, navigate){
   return async (dispatch) => {
     const toastId = toast.loading("Loading...")
     dispatch(setLoading(true))
     try {
-      const GAPIresponse = await apiConnector("POST", GOOGLE_AUTH, {response})
+      const response = await apiConnector("POST", GOOGLE_AUTH, {gapiresponse})
 
-      console.log("GOOGLE_AUTH API RESPONSE............", GAPIresponse)
+      console.log("GOOGLE_AUTH API RESPONSE............", response)
 
       if (!response.data.success) {
         throw new Error(response.data.message)

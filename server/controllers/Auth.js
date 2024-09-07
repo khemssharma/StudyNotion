@@ -7,31 +7,31 @@ const mailSender = require("../utils/mailSender")
 const { passwordUpdated } = require("../mail/templates/passwordUpdate")
 const Profile = require("../models/Profile")
 require("dotenv").config()
-const { OAuth2Client } = require('google-auth-library'); //OAuth2Client by google-auth-library
+const axios = require('axios');
 
-// Continue with google
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID); //generate new OAuth2Client 
-// your authentication logic
+// Continue with Google login
 exports.googleauth = async (req, res) => {
-  try{
-    // fetch token from UI requset 
-    const  token  = req.body.response
-    console.log(token)
-    // generate ticket by Oauth2client
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    // get data from payload of ticket
-    const { email_verified, name, firstName, lastName, email, picture } = ticket.getPayload();
+  try {
+    // Fetch access token from UI request
+    const gapiresponse = req.body.gapiresponse.access_token;
+    console.log(gapiresponse);
+
+    // Make a request to the Google UserInfo endpoint
+    const userInfo = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${gapiresponse}`);
+
+    // Process user info from the response
+    console.log(userInfo.data);
+
     // failure in case email not google varified
+    const email_verified = userInfo.data.email_verified
+    console.log(email_verified)
     if (!email_verified) {
       return res.status(400).json({
           sucess:false,
           message:"Email_varified: false"
       })
     }
+    const email = userInfo.data.email;
     // find if user exist by this email
     const user = await User.findOne({ email });
     // if user exist by this email --> sign in i.e. generate jwt token
@@ -74,15 +74,15 @@ exports.googleauth = async (req, res) => {
           contactNumber: null,
         })
         const user = await User.create({
-          firstName : firstName,
-          lastName : lastName,
-          name: name,
+          firstName : userInfo.data.given_name,
+          lastName : userInfo.data.family_name,
+          name: userInfo.data.name,
           email : email,
           password : password,
           accountType: "Student",
           approved: approved,
           additionalDetails: profileDetails._id,
-          image: picture,
+          image: userInfo.data.picture,
         })
 
         //  --> Generate JWT token i.e Login the user.
