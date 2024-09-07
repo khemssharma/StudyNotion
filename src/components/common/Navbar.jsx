@@ -149,14 +149,12 @@ function Navbar() {
         </div>
 
         {/*dropdown icon*/}
+        <div className="relative">
+        <button className="mr-4 md:hidden" onclick={toggleDropdown}>
+          <AiOutlineMenu fontSize={24} fill="#AFB2BF" />
+        </button>
 
-          <button className="mr-4 md:hidden" onclick={toggleDropdown}>
-            <AiOutlineMenu fontSize={24} fill="#AFB2BF" />
-          </button>
-          
-          {/* render dropdown menu based upon event*/}
-
-          {isDropdownOpen && (
+        {isDropdownOpen && (
           <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-lg z-10">
             <Link to="/best-deals" className="block px-4 py-2 text-white hover:bg-gray-700">
               Best Deals
@@ -181,7 +179,8 @@ function Navbar() {
             </Link>
           </div>
         )}
-    </div>
+        </div>
+      </div>
     </div>
   )
 }
