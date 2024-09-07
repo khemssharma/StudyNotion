@@ -150,7 +150,6 @@ function Navbar() {
 
         {/*dropdown icon*/}
 
-        <div className = "relative">
           <button className="mr-4 md:hidden" onclick={toggleDropdown}>
             <AiOutlineMenu fontSize={24} fill="#AFB2BF" />
           </button>
@@ -182,7 +181,6 @@ function Navbar() {
             </Link>
           </div>
         )}
-      </div>
     </div>
     </div>
   )
