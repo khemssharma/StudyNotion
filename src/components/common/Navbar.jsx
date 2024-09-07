@@ -20,6 +20,13 @@ function Navbar() {
   const [subLinks, setSubLinks] = useState([])
   const [loading, setLoading] = useState(false)
 
+  // manage open and close state of dropdown 
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
+  // toggle dropdown
+  const toggleDropdown = () => {
+    setDropdownOpen(!isDropdownOpen);
+  };
+
   useEffect(() => {
     ;(async () => {
       setLoading(true)
@@ -140,9 +147,39 @@ function Navbar() {
           )}
           {token !== null && <ProfileDropdown />}
         </div>
-        <button className="mr-4 md:hidden">
+
+        {/*dropdown icon*/}
+
+        <button className="mr-4 md:hidden" onclick={toggleDropdown}>
           <AiOutlineMenu fontSize={24} fill="#AFB2BF" />
         </button>
+
+        {/* render dropdown menu based upon event*/}
+        {isDropdownOpen && (
+          <div className="absolute right-0 mt-2 w-56 bg-gray-800 rounded-lg shadow-lg z-10">
+            <Link to="/best-deals" className="block px-4 py-2 text-white hover:bg-gray-700">
+              Best Deals
+            </Link>
+            <Link to="/best-selling" className="block px-4 py-2 text-white hover:bg-gray-700">
+              Best Selling
+            </Link>
+            <Link to="/wishlist" className="block px-4 py-2 text-white hover:bg-gray-700">
+              Wishlist
+            </Link>
+            <Link to="/cart" className="block px-4 py-2 text-white hover:bg-gray-700">
+              Cart
+            </Link>
+            <Link to="/faq" className="block px-4 py-2 text-white hover:bg-gray-700">
+              FAQ
+            </Link>
+            <Link to="/about-us" className="block px-4 py-2 text-white hover:bg-gray-700">
+              About Us
+            </Link>
+            <Link to="/careers" className="block px-4 py-2 text-white hover:bg-gray-700">
+              Careers
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )
