@@ -8,12 +8,10 @@ const userSchema = new mongoose.Schema(
 		
 		firstName: {
 			type: String,
-			required:true,
 			trim: true,
 		},
 		lastName: {
 			type: String,
-			required:true,
 			trim: true,
 		},
 		name: {
@@ -37,8 +35,6 @@ const userSchema = new mongoose.Schema(
 			type: String,
 			enum: ["Admin", "Student", "Instructor"],
 			default: "Student",
-			// for testing only required is commented down.
-			// required: true, 
 		},
 		active: {
 			type: Boolean,
