@@ -17,7 +17,7 @@ export default function SidebarLink({ link, iconName }) {
     <NavLink
       to={link.path}
       onClick={() => dispatch(resetCourseState())}
-      className={`relative px-8 py-2 text-sm font-medium ${
+      className={`relative px-7 md:px-8 py-2 text-sm font-medium ${
         matchRoute(link.path)
           ? "bg-yellow-800 text-yellow-50"
           : "bg-opacity-0 text-richblack-300"

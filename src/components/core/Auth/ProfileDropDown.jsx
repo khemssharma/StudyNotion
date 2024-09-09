@@ -1,5 +1,4 @@
 import { useRef, useState } from "react"
-import { AiOutlineCaretDown } from "react-icons/ai"
 import { VscDashboard, VscSignOut } from "react-icons/vsc"
 import { useDispatch, useSelector } from "react-redux"
 import { Link, useNavigate } from "react-router-dom"
@@ -26,7 +25,6 @@ export default function ProfileDropdown() {
           alt={`profile-${user?.firstName}`}
           className="aspect-square w-[30px] rounded-full object-cover"
         />
-        <AiOutlineCaretDown className="text-sm text-richblack-100" />
       </div>
       {open && (
         <div
