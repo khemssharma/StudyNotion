@@ -148,8 +148,7 @@ function Navbar() {
 
         {/*mobile dropdown icon*/}
 
-       <div className="flex items-center mr-4 gap-x-4 md:hidden">
-          
+       <div className="flex items-center gap-x-4 md:hidden">
           <button className="md:hidden" onClick={() => setOpen(!open)}>
             < IoMdMore  fontSize={24} fill="#AFB2BF" />
           </button>

@@ -32,8 +32,8 @@ exports.googleauth = async (req, res) => {
       })
     }
     const email = userInfo.data.email;
-    // find if user exist by this email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }); // find if user exist by this email
+    
     // if user exist by this email --> sign in i.e. generate jwt token
     if (user) {
       const token = jwt.sign(
@@ -61,7 +61,8 @@ exports.googleauth = async (req, res) => {
     } else {
         // email does not exist --> sign up i.e generate user in your DB --> Generate JWT token
         // --> generate user in your DB.
-        const password = email + process.env.GOOGLE_SECRET; // generate automatic password by google
+        const password = email + userInfo.data.sub; // sub is unique google user ID
+        const hashedPassword = await bcrypt.hash(password, 10) // Hashed password ensure user security on our servers
         // Create the user
         let approved = ""
         approved === "Instructor" ? (approved = false) : (approved = true)
@@ -78,7 +79,7 @@ exports.googleauth = async (req, res) => {
           lastName : userInfo.data.family_name,
           name: userInfo.data.name,
           email : email,
-          password : password,
+          password : hashedPassword,
           accountType: "Student",
           approved: approved,
           additionalDetails: profileDetails._id,
@@ -108,11 +109,6 @@ exports.googleauth = async (req, res) => {
           token,
           user,
           message: `User Login Success`,
-        })
-        return res.status(200).json({
-          success: true,
-          user,
-          message: "User registered successfully and login successful by Google!!",
         })
         }
     }catch(error){
