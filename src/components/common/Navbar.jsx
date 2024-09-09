@@ -24,14 +24,7 @@ function Navbar() {
 
   // moblie view
   const [open, setOpen] = useState(false); //mobile dropdown state
-
-  // manage open and close state of dropdown 
-  const [isDropdownOpen, setDropdownOpen] = useState(false);
-  // toggle dropdown
-  const toggleDropdown = () => {
-    setDropdownOpen(!isDropdownOpen);
-  };
-
+  
   useEffect(() => {
     ;(async () => {
       setLoading(true)
