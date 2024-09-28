@@ -25,7 +25,7 @@ exports.resetPasswordToken = async (req, res) => {
 		);
 		console.log("DETAILS", updatedDetails);
 
-		const url = `https://studynotion-sigma.vercel.app/update-password/${token}`;
+		const url = `${process.env.CLIENT}/update-password/${token}`;
 
 		await mailSender(
 			email,

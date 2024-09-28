@@ -16,17 +16,21 @@ const dotenv = require("dotenv");
 dotenv.config();
 const PORT = process.env.PORT || 4000;
 
+// set 'cors' header differently for http & mobile requests 
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow all origins
+        callback(null, true);
+    },
+    credentials: true,
+};
 //database connect
 database.connect();
 //middlewares
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-	cors({
-		origin: process.env.CLIENT,
-		credentials:true,
-	})
-)
+// allow all origins for requests from the mobile app
+app.use(cors(corsOptions));
 
 app.use(
 	fileUpload({
