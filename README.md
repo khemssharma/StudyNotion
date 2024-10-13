@@ -31,7 +31,32 @@ REACT_APP_GOOGLE_CLIENT_ID =
 REACT_APP_RAZORPAY_KEY = 
 ```
 
-Replace the placeholder values with your actual Google OAuth and Razorpay credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/) and [Razorpay](https://razorpay.com)
+Also Create a new file named `.env` in the server folder of your project and add the following content:
+
+```env
+MAIL_HOST = smtp.gmail.com
+MAIL_USER = 
+MAIL_PASS = 
+GOOGLE_CLIENT_ID = YOUR_OAUTH_CREDENTIALS
+
+JWT_SECRET = 
+FOLDER_NAME =
+
+RAZORPAY_KEY = 
+RAZORPAY_SECRET = 
+CLOUD_NAME = 
+API_KEY = 
+API_SECRET =
+
+MONGODB_URL = 
+PORT = 4000
+NODE_VERSION = 18.17.1
+
+CLIENT = http://localhost:3000
+
+```
+
+Replace the placeholder values with your actual Google OAuth, Gmail SMTP, Razorpay, MongoDB and JWT credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/), [Razorpay](https://razorpay.com), [MongoDB](https://mongodb.com) and [JWT](https://jwt.com)
 
 **Running the Project**
 
