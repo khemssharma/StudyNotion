@@ -26,9 +26,9 @@ Create a new file named `.env` in the root of your project and add the following
 ```env
 REACT_APP_BASE_URL = http://localhost:4000/api/v1
 
-REACT_APP_GOOGLE_CLIENT_ID = 
+REACT_APP_GOOGLE_CLIENT_ID = YOUR_OAUTH_CREDENTIALS
 
-REACT_APP_RAZORPAY_KEY = 
+REACT_APP_RAZORPAY_KEY = YOUR_RAZORPAY_CREDENTIALS
 ```
 
 Also Create a new file named `.env` in the server folder of your project and add the following content:
@@ -42,7 +42,7 @@ GOOGLE_CLIENT_ID = YOUR_OAUTH_CREDENTIALS
 JWT_SECRET = 
 FOLDER_NAME =
 
-RAZORPAY_KEY = 
+RAZORPAY_KEY = YOUR_RAZORPAY_CREDENTIALS
 RAZORPAY_SECRET = 
 CLOUD_NAME = 
 API_KEY = 
