@@ -8,7 +8,7 @@ Make sure you have the following installed on your machine:
 
 ```bash
 git clone https://github.com/kc-sharma/StudyNotion.git
-cd project_3D_developer_portfolio
+cd StudyNotion
 ```
 
 **Installation**
