@@ -31,7 +31,7 @@ REACT_APP_GOOGLE_CLIENT_ID =
 REACT_APP_RAZORPAY_KEY = 
 ```
 
-Replace the placeholder values with your actual EmailJS credentials. You can obtain these credentials by signing up on the [EmailJS website](https://www.emailjs.com/).
+Replace the placeholder values with your actual Google OAuth and Razorpay credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/) and [Razorpay](https://razorpay.com)
 
 **Running the Project**
 
@@ -39,4 +39,4 @@ Replace the placeholder values with your actual EmailJS credentials. You can obt
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser to view the project.
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the project.
