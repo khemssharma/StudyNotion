@@ -56,7 +56,7 @@ CLIENT = http://localhost:3000
 
 ```
 
-Replace the placeholder values with your actual Google OAuth, Gmail SMTP, Razorpay, MongoDB and JWT credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/), [Razorpay](https://razorpay.com), [MongoDB](https://mongodb.com) and [JWT](https://jwt.com)
+Replace the placeholder values with your actual Google OAuth, Gmail SMTP, Razorpay, MongoDB and JWT credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/), [Razorpay](https://razorpay.com), [MongoDB](https://mongodb.com) and [JWT](https://jwt.io)
 
 **Running the Project**
 
