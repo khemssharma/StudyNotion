@@ -1,0 +1,28 @@
+### Login to Get Token
+POST http://localhost:4000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "example@gmail.com",
+  "password": "abcde@123"
+}
+
+### Create a Category (Requires Authentication)
+POST http://localhost:4000/api/v1/course/createCategory
+Content-Type: application/json
+Authorization: Bearer <Your-Token-Here>
+
+{
+  "name": "Web Development",
+  "description": "Courses related to building websites and web applications"
+}
+
+
+### Get Category Page Details
+POST http://localhost:4000/api/v1/course/getCategoryPageDetails
+Content-Type: application/json
+Authorization: Bearer f8e6753c4927d392e7de0cc7cbefd77065c6fffc
+
+{
+  "categoryId": "682619f0e26f8c197cb0240e"
+}

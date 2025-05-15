@@ -40,8 +40,12 @@ const VideoDetails = () => {
           (data) => data._id === subSectionId
         )
         // console.log("filteredVideoData", filteredVideoData)
-        setVideoData(filteredVideoData[0])
-        setPreviewSource(courseEntireData.thumbnail)
+        if (filteredVideoData && filteredVideoData.length > 0) {
+          setVideoData(filteredVideoData[0])
+        } else {
+          setVideoData(null)
+        }
+        setPreviewSource(courseEntireData?.thumbnail || "")
         setVideoEnded(false)
       }
     })()
