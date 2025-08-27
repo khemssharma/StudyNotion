@@ -2,7 +2,7 @@ name: Keep Render API Awake
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # runs every 10 minutes
+    - cron: "*/5 * * * *"   # runs every 10 minutes
   workflow_dispatch:         # lets you run manually from Actions tab
 
 jobs:
@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Ping Render API
         run: |
-          curl -s https://studynotion-1rjk.onrender.com || true
+          curl -s https://studynotion-oylf.onrender.com || true
