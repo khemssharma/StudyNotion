@@ -1,8 +1,6 @@
 name: Keep Render API Awake
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"   # runs every 10 minutes
   workflow_dispatch:         # lets you run manually from Actions tab
 
 jobs:
