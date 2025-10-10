@@ -490,3 +490,41 @@ exports.deleteCourse = async (req, res) => {
     })
   }
 }
+
+// Search Courses by query
+exports.searchCourse = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required",
+      });
+    }
+
+    // Search in courseName, courseDescription, and tag fields
+    const courses = await Course.find({
+      status: "Published",
+      $or: [
+        { courseName: { $regex: query, $options: "i" } },
+        { courseDescription: { $regex: query, $options: "i" } },
+        { tag: { $elemMatch: { $regex: query, $options: "i" } } },
+      ],
+    })
+      .populate("instructor")
+      .populate("category")
+      .exec();
+
+    res.status(200).json({
+      success: true,
+      data: courses,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to search courses",
+      error: error.message,
+    });
+  }
+};
