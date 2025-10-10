@@ -207,6 +207,44 @@ function Navbar() {
           {/*mobile dropdown icon*/}
 
        <div className="flex items-center gap-x-4 md:hidden">
+          {/* Search Icon and Search Bar */}
+            <div className="relative">
+              <button
+                className="p-2"
+                onClick={() => setShowSearch((prev) => !prev)}
+                aria-label="Open search"
+              >
+                <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-richblack-100"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                >
+                  <circle cx="11" cy="11" r="7" strokeWidth="2" />
+                   <line x1="16.5" y1="16.5" x2="21" y2="21" strokeWidth="2" />
+                </svg>
+              </button>
+              <div
+                className={`absolute right-0 top-10 z-50 w-64 transition-all duration-300 ${
+                showSearch
+                ? "opacity-100 visible translate-y-0"
+                : "opacity-0 invisible -translate-y-2"
+                }`}
+              >
+                <form onSubmit={handleSearchSubmit}>
+                <input
+                  type="text"
+                  className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
+                  placeholder="Search courses..."
+                  autoFocus={showSearch}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => setShowSearch(false)}
+                />
+                </form>
+              </div>
+            </div>
           <button className="md:hidden" onClick={() => setOpen(!open)}>
             < IoMdMore  fontSize={24} fill="#AFB2BF" />
           </button>
@@ -221,6 +259,7 @@ function Navbar() {
             </Link>
           )}
           {token !== null && <ProfileDropdown />}
+          
 
           {open && (
           <div className = "fixed w-full bg-[#0000005f] z-20 h-full top-0 right-0">
