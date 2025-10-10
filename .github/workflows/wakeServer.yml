@@ -1,4 +1,4 @@
-name: Keep Render API Awake
+name: Wake the Render API
 
 on:
   workflow_dispatch:         # lets you run manually from Actions tab
