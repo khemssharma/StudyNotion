@@ -12,6 +12,7 @@ import { apiConnector } from "../../services/apiconnector"
 import { categories } from "../../services/apis"
 import { ACCOUNT_TYPE } from "../../utils/constants"
 import ProfileDropdown from "../core/Auth/ProfileDropDown"
+import { useNavigate } from "react-router-dom";
 
 function Navbar() {
   const { token } = useSelector((state) => state.auth)
@@ -23,6 +24,22 @@ function Navbar() {
   const [loading, setLoading] = useState(false)
 
   // Search bar state
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  
+  // Handle search submit
+  const handleSearchSubmit = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await apiConnector("GET", `/mock-api/search?query=${encodeURIComponent(searchQuery)}`);
+
+      console.log("Search results:", res.data);
+      navigate(`/search/${encodeURIComponent(searchQuery)}`);
+    } catch (error) {
+      console.error("Search failed:", error);
+    }
+  };
   const [showSearch, setShowSearch] = useState(false);
 
   // moblie view
@@ -147,13 +164,17 @@ function Navbar() {
               : "opacity-0 invisible -translate-y-2"
                 }`}
               >
-                <input
-            type="text"
-            className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
-            placeholder="Search courses..."
-            autoFocus={showSearch}
-            onBlur={() => setShowSearch(false)}
-                />
+            <form onSubmit={handleSearchSubmit}>
+              <input
+                type="text"
+                className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
+                placeholder="Search courses..."
+                autoFocus={showSearch}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => setShowSearch(false)}
+              />
+            </form>
               </div>
             </div>
             {user && user?.accountType !== ACCOUNT_TYPE.INSTRUCTOR && (
