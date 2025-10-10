@@ -75,4 +75,5 @@ export const settingsEndpoints = {
 // SEARCH API
 export const searchEndpoints = {
   COURSE_SEARCH_API: BASE_URL + "/course/searchCourse",
+  INSTRUCTOR_SEARCH_API: BASE_URL + "/course/instructorDetails",
 }

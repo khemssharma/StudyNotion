@@ -129,25 +129,30 @@ const Search = () => {
 
       {/* Instructor Profile Card */}
       {uniqueInstructor && (
-        <div style={instructorProfileStyle}>
-          <img
-            src={uniqueInstructor.image || "https://via.placeholder.com/70?text=No+Image"}
-            alt={uniqueInstructor.firstName + " " + uniqueInstructor.lastName}
-            style={instructorImgStyle}
-            onError={e => { e.target.src = "https://via.placeholder.com/70?text=No+Image"; }}
-          />
-          <div>
-            <div style={{fontWeight: 600, fontSize: "1.1em", color: "#FFD60A"}}>
-              {uniqueInstructor.firstName} {uniqueInstructor.lastName}
-            </div>
-            <div style={{color: "#ccc", fontSize: "0.98em"}}>
-              {uniqueInstructor.email}
-            </div>
-            <div style={{color: "#aaa", fontSize: "0.95em"}}>
-              Instructor
+        <Link
+          to={`/instructor/${uniqueInstructor._id}`}
+          style={{ textDecoration: 'none' }}
+        >
+          <div style={instructorProfileStyle}>
+            <img
+              src={uniqueInstructor.image || "https://via.placeholder.com/70?text=No+Image"}
+              alt={uniqueInstructor.firstName + " " + uniqueInstructor.lastName}
+              style={instructorImgStyle}
+              onError={e => { e.target.src = "https://via.placeholder.com/70?text=No+Image"; }}
+            />
+            <div>
+              <div style={{fontWeight: 600, fontSize: "1.1em", color: "#FFD60A"}}>
+                {uniqueInstructor.firstName} {uniqueInstructor.lastName}
+              </div>
+              <div style={{color: "#ccc", fontSize: "0.98em"}}>
+                {uniqueInstructor.email}
+              </div>
+              <div style={{color: "#aaa", fontSize: "0.95em"}}>
+                Instructor
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       {searchResults.length > 0 ? (

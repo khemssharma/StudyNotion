@@ -14,6 +14,7 @@ const {
   getInstructorCourses,
   deleteCourse,
   searchCourse,
+  instructorDetails,
 } = require("../controllers/Course")
 
 
@@ -84,6 +85,8 @@ router.get("/getInstructorCourses", auth, isInstructor, getInstructorCourses)
 router.delete("/deleteCourse", deleteCourse)
 // Search Course
 router.get("/searchCourse", searchCourse);
+// Get Instructor Details and their Courses
+router.get("/instructorDetails/:instructorId", instructorDetails);
 // Update Course Progress
 
 router.post("/updateCourseProgress", auth, isStudent, updateCourseProgress);

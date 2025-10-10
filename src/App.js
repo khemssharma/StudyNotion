@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import PrivateRoute from "./components/core/Auth/PrivateRoute";
 import Error from "./pages/Error"
 import Search from "./pages/Search";
+import InstructorDetails from "./pages/InstructorDetails";
 import Settings from "./components/core/Dashboard/Settings";
 import { useSelector } from "react-redux";
 import EnrolledCourses from "./components/core/Dashboard/EnrolledCourses";
@@ -157,6 +158,7 @@ function App() {
 
     <Route path="*" element={<Error />} />
     <Route path="search/:query" element={<Search />} />
+    <Route path="instructor/:instructorId" element={<InstructorDetails />} />
 
 
     </Routes>
