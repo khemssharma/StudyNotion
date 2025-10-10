@@ -491,7 +491,7 @@ exports.deleteCourse = async (req, res) => {
   }
 }
 
-// Search Courses by query
+// Search Courses by query (including instructor name)
 exports.searchCourse = async (req, res) => {
   try {
     const { query } = req.query;
@@ -502,18 +502,44 @@ exports.searchCourse = async (req, res) => {
       });
     }
 
-    // Search in courseName, courseDescription, and tag fields
-    const courses = await Course.find({
-      status: "Published",
-      $or: [
-        { courseName: { $regex: query, $options: "i" } },
-        { courseDescription: { $regex: query, $options: "i" } },
-        { tag: { $elemMatch: { $regex: query, $options: "i" } } },
-      ],
-    })
-      .populate("instructor")
-      .populate("category")
-      .exec();
+    // Use aggregation to search in course fields and instructor name
+    const courses = await Course.aggregate([
+      // Only published courses
+      { $match: { status: "Published" } },
+      // Lookup instructor details
+      {
+        $lookup: {
+          from: "users",
+          localField: "instructor",
+          foreignField: "_id",
+          as: "instructor",
+        },
+      },
+      { $unwind: "$instructor" },
+      // Lookup category details
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      // Match query in course fields or instructor name
+      {
+        $match: {
+          $or: [
+            { courseName: { $regex: query, $options: "i" } },
+            { courseDescription: { $regex: query, $options: "i" } },
+            { tag: { $elemMatch: { $regex: query, $options: "i" } } },
+            { "instructor.firstName": { $regex: query, $options: "i" } },
+            { "instructor.lastName": { $regex: query, $options: "i" } },
+            { "instructor.name": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+    ]);
 
     res.status(200).json({
       success: true,
