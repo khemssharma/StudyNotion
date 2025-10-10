@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom'; // Import Link
 import { apiConnector } from '../services/apiconnector';
 import { searchEndpoints } from '../services/apis';
 
@@ -14,6 +14,8 @@ const cardStyle = {
   color: 'white',
   gap: '2vw',
   maxWidth: '700px',
+  cursor: 'pointer', // Add pointer cursor
+  textDecoration: 'none', // Remove underline for Link
 };
 
 const imgStyle = {
@@ -89,7 +91,11 @@ const Search = () => {
       {searchResults.length > 0 ? (
         <div>
           {searchResults.map((course, index) => (
-            <div key={course._id || index} style={cardStyle}>
+            <Link
+              to={`/courses/${course._id}`}
+              key={course._id || index}
+              style={{ ...cardStyle, display: 'flex' }}
+            >
               <img
                 src={course.thumbnail}
                 alt={course.courseName}
@@ -103,7 +109,7 @@ const Search = () => {
                   Instructor: {course.instructor?.firstName} {course.instructor?.lastName}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (
