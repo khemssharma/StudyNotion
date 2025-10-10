@@ -554,3 +554,48 @@ exports.searchCourse = async (req, res) => {
     });
   }
 };
+
+// Get Instructor Details and their Courses by instructorId
+exports.instructorDetails = async (req, res) => {
+  try {
+    const { instructorId } = req.params;
+    if (!instructorId) {
+      return res.status(400).json({
+        success: false,
+        message: "Instructor ID is required",
+      });
+    }
+
+    const UserModel = require("../models/User");
+    const CourseModel = require("../models/Course");
+
+    // Find instructor profile
+    const instructor = await UserModel.findById(instructorId)
+      .populate("additionalDetails")
+      .lean();
+    if (!instructor || instructor.accountType !== "Instructor") {
+      return res.status(404).json({
+        success: false,
+        message: "Instructor not found",
+      });
+    }
+
+    // Find all courses by this instructor
+    const courses = await CourseModel.find({ instructor: instructorId, status: "Published" })
+      .select("_id courseName courseDescription price thumbnail")
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      instructor,
+      courses,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch instructor details",
+      error: error.message,
+    });
+  }
+};
