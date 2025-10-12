@@ -24,8 +24,10 @@ const corsOptions = {
     },
     credentials: true,
 };
-//database connect
-database.connect();
+//database connect (skip in tests)
+if (process.env.NODE_ENV !== 'test') {
+	database.connect();
+}
 //middlewares
 app.use(express.json());
 app.use(cookieParser());
@@ -38,8 +40,10 @@ app.use(
 		tempFileDir:"/tmp",
 	})
 )
-//cloudinary connection
-cloudinaryConnect();
+//cloudinary connection (skip in tests)
+if (process.env.NODE_ENV !== 'test') {
+	cloudinaryConnect();
+}
 
 //routes
 app.use("/api/v1/auth", userRoutes);
@@ -57,7 +61,11 @@ app.get("/", (req, res) => {
 	});
 });
 
-app.listen(PORT, () => {
-	console.log(`App is running at ${PORT}`)
-})
+if (process.env.NODE_ENV !== 'test') {
+	app.listen(PORT, () => {
+		console.log(`App is running at ${PORT}`)
+	})
+}
+
+module.exports = app;
 
