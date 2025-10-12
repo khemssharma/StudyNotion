@@ -13,6 +13,7 @@ import { categories } from "../../services/apis"
 import { ACCOUNT_TYPE } from "../../utils/constants"
 import ProfileDropdown from "../core/Auth/ProfileDropDown"
 import { useNavigate } from "react-router-dom";
+import { searchEndpoints } from "../../services/apis"
 
 function Navbar() {
   const { token } = useSelector((state) => state.auth)
@@ -32,7 +33,10 @@ function Navbar() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     try {
-      const res = await apiConnector("GET", `/mock-api/search?query=${encodeURIComponent(searchQuery)}`);
+      const res = await apiConnector(
+        "GET", 
+        searchEndpoints.COURSE_SEARCH_API + `?query=${encodeURIComponent(searchQuery)}`
+      );
 
       console.log("Search results:", res.data);
       navigate(`/search/${encodeURIComponent(searchQuery)}`);
@@ -208,6 +212,16 @@ function Navbar() {
 
        <div className="flex items-center gap-x-4 md:hidden">
           {/* Search Icon and Search Bar */}
+            {user && user?.accountType !== ACCOUNT_TYPE.INSTRUCTOR && (
+            <Link to="/dashboard/cart" className="relative">
+              <AiOutlineShoppingCart className="text-2xl text-richblack-100"/>
+              {totalItems > 0 && (
+                <span className="absolute -bottom-2 -right-2 grid h-5 w-5 place-items-center overflow-hidden rounded-full bg-richblack-600 text-center text-xs font-bold text-yellow-100">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
+          )}
             <div className="relative">
               <button
                 className="p-2"
@@ -248,16 +262,7 @@ function Navbar() {
           <button className="md:hidden" onClick={() => setOpen(!open)}>
             < IoMdMore  fontSize={24} fill="#AFB2BF" />
           </button>
-          {user && user?.accountType !== ACCOUNT_TYPE.INSTRUCTOR && (
-            <Link to="/dashboard/cart" className="relative">
-              <AiOutlineShoppingCart className="text-2xl text-richblack-100"/>
-              {totalItems > 0 && (
-                <span className="absolute -bottom-2 -right-2 grid h-5 w-5 place-items-center overflow-hidden rounded-full bg-richblack-600 text-center text-xs font-bold text-yellow-100">
-                  {totalItems}
-                </span>
-              )}
-            </Link>
-          )}
+          
           {token !== null && <ProfileDropdown />}
           
 

@@ -490,3 +490,112 @@ exports.deleteCourse = async (req, res) => {
     })
   }
 }
+
+// Search Courses by query (including instructor name)
+exports.searchCourse = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || query.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required",
+      });
+    }
+
+    // Use aggregation to search in course fields and instructor name
+    const courses = await Course.aggregate([
+      // Only published courses
+      { $match: { status: "Published" } },
+      // Lookup instructor details
+      {
+        $lookup: {
+          from: "users",
+          localField: "instructor",
+          foreignField: "_id",
+          as: "instructor",
+        },
+      },
+      { $unwind: "$instructor" },
+      // Lookup category details
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      // Match query in course fields or instructor name
+      {
+        $match: {
+          $or: [
+            { courseName: { $regex: query, $options: "i" } },
+            { courseDescription: { $regex: query, $options: "i" } },
+            { tag: { $elemMatch: { $regex: query, $options: "i" } } },
+            { "instructor.firstName": { $regex: query, $options: "i" } },
+            { "instructor.lastName": { $regex: query, $options: "i" } },
+            { "instructor.name": { $regex: query, $options: "i" } },
+          ],
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: courses,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to search courses",
+      error: error.message,
+    });
+  }
+};
+
+// Get Instructor Details and their Courses by instructorId
+exports.instructorDetails = async (req, res) => {
+  try {
+    const { instructorId } = req.params;
+    if (!instructorId) {
+      return res.status(400).json({
+        success: false,
+        message: "Instructor ID is required",
+      });
+    }
+
+    const UserModel = require("../models/User");
+    const CourseModel = require("../models/Course");
+
+    // Find instructor profile
+    const instructor = await UserModel.findById(instructorId)
+      .populate("additionalDetails")
+      .lean();
+    if (!instructor || instructor.accountType !== "Instructor") {
+      return res.status(404).json({
+        success: false,
+        message: "Instructor not found",
+      });
+    }
+
+    // Find all courses by this instructor
+    const courses = await CourseModel.find({ instructor: instructorId, status: "Published" })
+      .select("_id courseName courseDescription price thumbnail")
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      instructor,
+      courses,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch instructor details",
+      error: error.message,
+    });
+  }
+};

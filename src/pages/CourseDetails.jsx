@@ -3,7 +3,7 @@ import { BiInfoCircle } from "react-icons/bi"
 import { HiOutlineGlobeAlt } from "react-icons/hi"
 import { ReactMarkdown } from "react-markdown/lib/react-markdown"
 import { useDispatch, useSelector } from "react-redux"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, Link } from "react-router-dom"
 
 import ConfirmationModal from "../components/common/ConfirmationModal"
 import Footer from "../components/common/Footer"
@@ -240,18 +240,23 @@ function CourseDetails() {
             {/* Author Details */}
             <div className="mb-12 py-4">
               <p className="text-[28px] font-semibold">Author</p>
-              <div className="flex items-center gap-4 py-4">
-                <img
-                  src={
-                    instructor.image
-                      ? instructor.image
-                      : `https://api.dicebear.com/5.x/initials/svg?seed=${instructor.firstName} ${instructor.lastName}`
-                  }
-                  alt="Author"
-                  className="h-14 w-14 rounded-full object-cover"
-                />
-                <p className="text-lg">{`${instructor.firstName} ${instructor.lastName}`}</p>
-              </div>
+              <Link
+                to={`/instructor/${instructor._id}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <div className="flex items-center gap-4 py-4 hover:scale-[1.02] transition-transform cursor-pointer">
+                  <img
+                    src={
+                      instructor.image
+                        ? instructor.image
+                        : `https://api.dicebear.com/5.x/initials/svg?seed=${instructor.firstName} ${instructor.lastName}`
+                    }
+                    alt="Author"
+                    className="h-14 w-14 rounded-full object-cover"
+                  />
+                  <p className="text-lg">{`${instructor.firstName} ${instructor.lastName}`}</p>
+                </div>
+              </Link>
               <p className="text-richblack-50">
                 {instructor?.additionalDetails?.about}
               </p>

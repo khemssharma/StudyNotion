@@ -71,3 +71,9 @@ export const settingsEndpoints = {
   CHANGE_PASSWORD_API: BASE_URL + "/auth/changepassword",
   DELETE_PROFILE_API: BASE_URL + "/profile/deleteProfile",
 }
+
+// SEARCH API
+export const searchEndpoints = {
+  COURSE_SEARCH_API: BASE_URL + "/course/searchCourse",
+  INSTRUCTOR_SEARCH_API: BASE_URL + "/course/instructorDetails",
+}
