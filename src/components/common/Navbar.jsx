@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { AiOutlineShoppingCart } from "react-icons/ai"
 import { IoMdMore } from "react-icons/io";
 import { RxCross1 } from "react-icons/rx";
@@ -45,6 +45,41 @@ function Navbar() {
     }
   };
   const [showSearch, setShowSearch] = useState(false);
+
+  // refs for search inputs (desktop & mobile)
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
+
+  // helper to detect visible element
+  const isElementVisible = (el) => {
+    if (!el) return false;
+    try {
+      const style = window.getComputedStyle(el);
+      return style && style.visibility !== "hidden" && style.display !== "none" && parseFloat(style.opacity || "1") > 0;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // open/close search and focus the visible input when opening
+  const toggleSearch = () => {
+    setShowSearch((prev) => {
+      const next = !prev;
+      if (next) {
+        // allow DOM to update (visibility classes/transitions) then focus the visible input
+        setTimeout(() => {
+          const candidates = [desktopSearchRef.current, mobileSearchRef.current];
+          for (const el of candidates) {
+            if (el && isElementVisible(el)) {
+              el.focus();
+              break;
+            }
+          }
+        }, 50);
+      }
+      return next;
+    });
+  };
 
   // moblie view
   const [open, setOpen] = useState(false); //mobile dropdown state
@@ -147,7 +182,7 @@ function Navbar() {
             <div className="relative">
               <button
                 className="p-2"
-                onClick={() => setShowSearch((prev) => !prev)}
+                onClick={toggleSearch}
                 aria-label="Open search"
               >
                 <svg
@@ -173,7 +208,7 @@ function Navbar() {
                 type="text"
                 className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
                 placeholder="Search courses..."
-                autoFocus={showSearch}
+                ref={desktopSearchRef}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onBlur={() => setShowSearch(false)}
@@ -225,7 +260,7 @@ function Navbar() {
             <div className="relative">
               <button
                 className="p-2"
-                onClick={() => setShowSearch((prev) => !prev)}
+                onClick={toggleSearch}
                 aria-label="Open search"
               >
                 <svg
@@ -251,7 +286,7 @@ function Navbar() {
                   type="text"
                   className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
                   placeholder="Search courses..."
-                  autoFocus={showSearch}
+                  ref={mobileSearchRef}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onBlur={() => setShowSearch(false)}
