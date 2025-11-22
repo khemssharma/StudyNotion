@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { RxCross2 } from "react-icons/rx"
 import ReactStars from "react-rating-stars-component"
@@ -11,6 +11,7 @@ export default function CourseReviewModal({ setReviewModal }) {
   const { user } = useSelector((state) => state.profile)
   const { token } = useSelector((state) => state.auth)
   const { courseEntireData } = useSelector((state) => state.viewCourse)
+  const [courseRating, setCourseRating] = useState(0)
 
   const {
     register,
@@ -27,6 +28,7 @@ export default function CourseReviewModal({ setReviewModal }) {
 
   const ratingChanged = (newRating) => {
     // console.log(newRating)
+    setCourseRating(newRating)
     setValue("courseRating", newRating)
   }
 
@@ -103,7 +105,15 @@ export default function CourseReviewModal({ setReviewModal }) {
               >
                 Cancel
               </button>
-              <IconBtn text="Save" />
+              <IconBtn 
+                text="Save" 
+                disabled={courseRating === 0}
+                type="submit"
+                customClasses={courseRating === 0 
+                  ? "!bg-richblack-400 !text-richblack-600 opacity-60 cursor-not-allowed" 
+                  : "!bg-yellow-50 !text-richblack-900"
+                }
+              />
             </div>
           </form>
         </div>
