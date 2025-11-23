@@ -10,6 +10,8 @@ const ratingAndReviewSchema = new mongoose.Schema({
 	rating: {
 		type: Number,
 		required: true,
+		min: [1, "Rating must be at least 1 star"],
+		max: [5, "Rating cannot exceed 5 stars"],
 	},
 	review: {
 		type: String,

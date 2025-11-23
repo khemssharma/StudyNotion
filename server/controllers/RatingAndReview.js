@@ -1,4 +1,4 @@
-const RatingAndReview = require("../models/RatingAndRaview");
+const RatingAndReview = require("../models/RatingAndReview");
 const Course = require("../models/Course");
 const { mongo, default: mongoose } = require("mongoose");
 
@@ -10,6 +10,15 @@ exports.createRating = async (req, res) => {
         const userId = req.user.id;
         //fetchdata from req body
         const {rating, review, courseId} = req.body;
+
+        //Validate rating value
+        if (!rating || rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: "Rating must be between 1 and 5 stars",
+            });
+        }
+
         //check if user is enrolled or not
         const courseDetails = await Course.findOne(
                                     {_id:courseId,
