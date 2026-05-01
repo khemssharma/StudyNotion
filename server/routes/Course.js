@@ -17,6 +17,8 @@ const {
   instructorDetails,
 } = require("../controllers/Course")
 
+// Recommendations Controller Import
+const { getRecommendations } = require("../controllers/Recommend")
 
 // Categories Controllers Import
 const {
@@ -46,16 +48,14 @@ const {
   getAllRating,
 } = require("../controllers/RatingAndReview")
 
-const {
-  updateCourseProgress
-} = require("../controllers/courseProgress");
+const { updateCourseProgress } = require("../controllers/courseProgress");
 
 // Importing Middlewares
 const { auth, isInstructor, isStudent, isAdmin } = require("../middlewares/auth")
 
-// ********************************************************************************************************
-//                                      Course routes
-// ********************************************************************************************************
+// ******************************************************************************
+// Course routes
+// ******************************************************************************
 
 // Courses can Only be Created by Instructors
 router.post("/createCourse", auth, isInstructor, createCourse)
@@ -88,21 +88,39 @@ router.get("/searchCourse", searchCourse);
 // Get Instructor Details and their Courses
 router.get("/instructorDetails/:instructorId", instructorDetails);
 // Update Course Progress
-
 router.post("/updateCourseProgress", auth, isStudent, updateCourseProgress);
 
-// ********************************************************************************************************
-//                                      Category routes (Only by Admin)
-// ********************************************************************************************************
+// ******************************************************************************
+// Recommendations (optional auth - works for guests and logged-in users)
+// ******************************************************************************
+// Middleware wrapper: optionally decode token but don't reject unauthenticated
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
+  try {
+    const jwt = require("jsonwebtoken");
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+  } catch (_) {
+    // Invalid/expired token - continue as guest
+  }
+  next();
+};
+router.get("/recommendations", optionalAuth, getRecommendations);
+
+// ******************************************************************************
+// Category routes (Only by Admin)
+// ******************************************************************************
 // Category can Only be Created by Admin
 // TODO: Put IsAdmin Middleware here
 router.post("/createCategory", auth, isAdmin, createCategory)
 router.get("/showAllCategories", showAllCategories)
 router.post("/getCategoryPageDetails", categoryPageDetails)
 
-// ********************************************************************************************************
-//                                      Rating and Review
-// ********************************************************************************************************
+// ******************************************************************************
+// Rating and Review
+// ******************************************************************************
 router.post("/createRating", auth, isStudent, createRating)
 router.get("/getAverageRating", getAverageRating)
 router.get("/getReviews", getAllRating)
