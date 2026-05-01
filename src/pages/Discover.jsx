@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { apiConnector } from "../services/apiconnector";
 import { courseEndpoints } from "../services/apis";
 import CourseCard from "../components/core/Catalog/Course_Card";
-import { Helmet } from "react-helmet";
 
 const { RECOMMENDATIONS_API } = courseEndpoints;
 
