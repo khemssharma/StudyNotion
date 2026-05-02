@@ -25,6 +25,7 @@
     "react-scripts": "5.0.1",
     "react-super-responsive-table": "^5.2.1",
     "react-type-animation": "^3.0.1",
+    "recharts": "^2.15.4",
     "redux-toolkit": "^1.1.2",
     "swiper": "^9.4.1",
     "video-react": "^0.16.0",
@@ -44,7 +45,7 @@
     "eject": "react-scripts eject",
     "server": "cd server && npm run dev",
     "dev": "concurrently -n \"client,server\" -c \"bgBlue,bgYellow\" \"npm start\" \"npm run server\"",
-    "test":"jest"
+    "test": "jest"
   },
   "eslintConfig": {
     "extends": [
