@@ -73,6 +73,14 @@ export const settingsEndpoints = {
   DELETE_PROFILE_API: BASE_URL + "/profile/deleteProfile",
 }
 
+// ADMIN ANALYTICS ENDPOINTS
+export const adminEndpoints = {
+  OVERVIEW_API:         BASE_URL + "/analytics/overview",
+  ENROLLMENT_TREND_API: BASE_URL + "/analytics/enrollment-trend",
+  TOP_COURSES_API:      BASE_URL + "/course/recommendations",
+  RECENT_USERS_API:     BASE_URL + "/analytics/recent-users",
+}
+
 // SEARCH API
 export const searchEndpoints = {
   COURSE_SEARCH_API: BASE_URL + "/course/searchCourse",

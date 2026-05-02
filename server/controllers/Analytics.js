@@ -98,7 +98,6 @@ exports.getInstructorRevenue = async (req, res) => {
 exports.getRatingDistribution = async (req, res) => {
   try {
     const { courseId } = req.params;
-
     const distribution = await RatingAndReview.aggregate([
       { $match: { course: mongoose.Types.ObjectId(courseId) } },
       { $group: { _id: "$rating", count: { $sum: 1 } } },
@@ -115,10 +114,25 @@ exports.getRatingDistribution = async (req, res) => {
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
-};
+}
+
+// GET /api/v1/analytics/recent-users
+exports.getRecentUsers = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const users = await User.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select("firstName lastName email accountType image createdAt")
+      .lean();
+    return res.status(200).json({ success: true, data: users });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
 
 // GET /api/v1/analytics/enrollment-trend
-exports.getMonthlyEnrollmentTrend = async (req, res) => {
+exports.getEnrollmentTrend = async (req, res) => {
   try {
     const trend = await Course.aggregate([
       { $unwind: "$studentsEnrolled" },
@@ -147,4 +161,4 @@ exports.getMonthlyEnrollmentTrend = async (req, res) => {
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
-};
+}
