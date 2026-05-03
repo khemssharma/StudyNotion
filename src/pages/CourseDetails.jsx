@@ -10,6 +10,8 @@ import Footer from "../components/common/Footer"
 import RatingStars from "../components/common/RatingStars"
 import CourseAccordionBar from "../components/core/Course/CourseAccordionBar"
 import CourseDetailsCard from "../components/core/Course/CourseDetailsCard"
+import AIAssistant from "../components/common/AI/AIAssistant"
+import CourseAIDescription from "../components/common/AI/CourseAIDescription"
 import { formatDate } from "../services/formatDate"
 import { fetchCourseDetails } from "../services/operations/courseDetailsAPI"
 import { buyCourse } from "../services/operations/studentFeaturesAPI"
@@ -200,6 +202,15 @@ function CourseDetails() {
             </div>
           </div>
 
+          {/* AI Course Description */}
+          <CourseAIDescription
+            courseTitle={courseName}
+            description={courseDescription}
+            sections={courseContent}
+            whatYouWillLearn={whatYouWillLearn}
+            instructor={`${instructor?.firstName} ${instructor?.lastName}`}
+          />
+
           {/* Course Content Section */}
           <div className="max-w-[830px] ">
             <div className="flex flex-col gap-3">
@@ -266,6 +277,22 @@ function CourseDetails() {
       </div>
       <Footer />
       {confirmationModal && <ConfirmationModal modalData={confirmationModal} />}
+
+      {/* Floating AI Tutor */}
+      <AIAssistant
+        courseContext={{
+          courseTitle: courseName,
+          description: courseDescription,
+          sections: courseContent,
+          whatYouWillLearn,
+        }}
+        suggestedQuestions={[
+          `What will I learn in "${courseName}"?`,
+          "Is this course good for beginners?",
+          "What are the key topics covered?",
+          "How long will this course take to complete?",
+        ]}
+      />
     </>
   )
 }

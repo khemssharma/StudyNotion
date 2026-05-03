@@ -73,6 +73,12 @@ export const settingsEndpoints = {
   DELETE_PROFILE_API: BASE_URL + "/profile/deleteProfile",
 }
 
+// AI / GEMINI ENDPOINTS
+export const aiEndpoints = {
+  AI_CHAT_API:           BASE_URL + "/ai/chat",
+  AI_DESCRIBE_COURSE_API: BASE_URL + "/ai/describe-course",
+}
+
 // ADMIN ANALYTICS ENDPOINTS
 export const adminEndpoints = {
   OVERVIEW_API:         BASE_URL + "/analytics/overview",
