@@ -25,11 +25,11 @@
     "react-scripts": "5.0.1",
     "react-super-responsive-table": "^5.2.1",
     "react-type-animation": "^3.0.1",
-    "recharts": "^2.15.4",
     "redux-toolkit": "^1.1.2",
     "swiper": "^9.4.1",
     "video-react": "^0.16.0",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "recharts": "^2.12.7"
   },
   "repository": {
     "type": "git",

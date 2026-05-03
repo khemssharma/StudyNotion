@@ -6,6 +6,8 @@ const profileRoutes = require("./routes/Profile");
 const paymentRoutes = require("./routes/Payments");
 const courseRoutes = require("./routes/Course");
 const contactUsRoute = require("./routes/Contact");
+const analyticsRoutes = require("./routes/Analytics");
+const aiRoutes = require("./routes/AI");
 const database = require("./config/database");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
@@ -51,7 +53,8 @@ app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/course", courseRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/reach", contactUsRoute);
-app.use("/api/v1/analytics", require("./routes/analytics"));
+app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/ai", aiRoutes);
 
 //def route
 app.get("/", (req, res) => {
@@ -68,4 +71,3 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 module.exports = app;
-

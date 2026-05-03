@@ -9,6 +9,7 @@ import { BigPlayButton, Player } from "video-react"
 import { markLectureAsComplete } from "../../../services/operations/courseDetailsAPI"
 import { updateCompletedLectures } from "../../../slices/viewCourseSlice"
 import IconBtn from "../../common/IconBtn"
+import AIAssistant from "../../common/AI/AIAssistant"
 
 const VideoDetails = () => {
   const { courseId, sectionId, subSectionId } = useParams()
@@ -245,6 +246,27 @@ const VideoDetails = () => {
 
       <h1 className="mt-4 text-3xl font-semibold">{videoData?.title}</h1>
       <p className="pt-2 pb-6">{videoData?.description}</p>
+
+      {/* Floating AI Tutor — context-aware for the current lecture */}
+      <AIAssistant
+        courseContext={{
+          courseTitle: courseEntireData?.courseName,
+          description: courseEntireData?.courseDescription,
+          sections: courseSectionData,
+          currentLecture: videoData
+            ? { title: videoData.title, description: videoData.description }
+            : null,
+        }}
+        position="bottom-right"
+        suggestedQuestions={
+          videoData?.title ? [
+            `Explain "${videoData.title}" in simple terms`,
+            `Give me a quick summary of what was covered in "${videoData.title}"`,
+            "What should I know before this topic?",
+            "Give me a practice question on this topic",
+          ] : []
+        }
+      />
     </div>
   )
 }
