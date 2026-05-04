@@ -96,3 +96,21 @@ exports.isInstructor = async (req, res, next) => {
 			.json({ success: false, message: `User Role Can't be Verified` });
 	}
 };
+
+// Optional auth – attaches req.user if a valid token is present, but never blocks
+exports.optionalAuth = async (req, res, next) => {
+    try {
+        const token =
+            req.cookies.token ||
+            req.body.token ||
+            req.header("Authorization")?.replace("Bearer ", "");
+
+        if (token) {
+            const decode = await jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decode;
+        }
+    } catch (_) {
+        // invalid / expired token – treat as unauthenticated
+    }
+    next();
+};
