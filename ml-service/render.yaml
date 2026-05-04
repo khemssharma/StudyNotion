@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: studynotion-ml-recommender
+    env: python
+    plan: free          # upgrade to starter for persistent disk
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 1 --threads 2 --timeout 120
+    envVars:
+      - key: MODEL_PATH
+        value: /opt/render/project/src/models
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+    # Mount a persistent disk so trained model survives redeploys
+    # (requires at least Starter plan – comment out on Free tier)
+    # disk:
+    #   name: ml-models
+    #   mountPath: /opt/render/project/src/models
+    #   sizeGB: 1
