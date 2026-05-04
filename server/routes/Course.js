@@ -74,7 +74,7 @@ router.post("/updateCourseProgress", auth, isStudent, updateCourseProgress);
 // ── Categories ────────────────────────────────────────────────────────────────
 router.post("/createCategory",        auth, isAdmin, createCategory);
 router.get("/showAllCategories",      showAllCategories);
-router.post("/getCategoryPageDetail", categoryPageDetails);
+router.get("/getCategoryPageDetail", categoryPageDetails);
 
 // ── Sections ──────────────────────────────────────────────────────────────────
 router.post("/addSection",    auth, isInstructor, createSection);
