@@ -2,6 +2,6 @@ flask==3.0.3
 flask-cors==4.0.1
 gunicorn==22.0.0
 scikit-learn==1.5.1
-scipy==1.13.1
+scipy==11.11.4
 numpy==1.26.4
 pymongo==4.8.0
