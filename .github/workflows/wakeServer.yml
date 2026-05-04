@@ -1,8 +1,6 @@
 name: Wake the Render API
-
 on:
   workflow_dispatch:         # lets you run manually from Actions tab
-
 jobs:
   ping:
     runs-on: ubuntu-latest
@@ -10,3 +8,7 @@ jobs:
       - name: Ping Render API
         run: |
           curl -s https://studynotion-oylf.onrender.com || true
+
+      - name: Ping Render API 2
+        run: |
+          curl -s https://studynotion-ml.onrender.com || true
