@@ -1,48 +1,119 @@
-const Course = require("../models/Course");
-const User = require("../models/User");
-const CourseProgress = require("../models/CourseProgress");
-const RatingAndReview = require("../models/RatingAndReview");
+/**
+ * server/controllers/Recommend.js
+ * ================================
+ * Recommendation controller that delegates scoring to the Python ML
+ * microservice and falls back gracefully to the original heuristic if
+ * the ML service is unavailable.
+ *
+ * Environment variables required:
+ *   ML_SERVICE_URL – base URL of the Python Flask service
+ *                    e.g. https://studynotion-ml-recommender.onrender.com
+ *                    Leave unset during local dev to use heuristic fallback.
+ *   ML_TIMEOUT_MS  – request timeout in ms (default 4000)
+ */
 
-// Helper: compute average rating for a course from its ratingAndReviews array
+const axios  = require("axios");
+const Course = require("../models/Course");
+const User   = require("../models/User");
+
+const ML_URL     = process.env.ML_SERVICE_URL || "";
+const ML_TIMEOUT = parseInt(process.env.ML_TIMEOUT_MS || "4000", 10);
+
+// ── Heuristic helpers (kept as fallback) ─────────────────────────────────────
+
 const computeAvgRating = (reviews) => {
   if (!reviews || reviews.length === 0) return 0;
-  const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
-  return sum / reviews.length;
+  return reviews.reduce((acc, r) => acc + (r.rating || 0), 0) / reviews.length;
 };
 
-// Helper: score a course for ranking
-// Score = (enrollmentCount * 0.5) + (avgRating * 10 * 0.3) + (recencyBoost * 0.2)
-const scoreCourse = (course) => {
-  const enrollments = (course.studentsEnrolled || []).length;
-  const avgRating = computeAvgRating(course.ratingAndReviews);
-  const ageInDays = (Date.now() - new Date(course.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-  // Recency boost: newer courses get higher score, decays over 365 days
+const heuristicScore = (course) => {
+  const enrollments  = (course.studentsEnrolled || []).length;
+  const avgRating    = computeAvgRating(course.ratingAndReviews);
+  const ageInDays    = (Date.now() - new Date(course.createdAt).getTime()) / 86_400_000;
   const recencyBoost = Math.max(0, 100 - ageInDays / 3.65);
   return enrollments * 0.5 + avgRating * 10 * 0.3 + recencyBoost * 0.2;
 };
+
+// ── Shared data fetcher ───────────────────────────────────────────────────────
+
+async function fetchPublishedCourses() {
+  return Course.find({ status: "Published" })
+    .populate("instructor", "firstName lastName")
+    .populate("category",   "name")
+    .populate("ratingAndReviews", "rating")
+    .lean();
+}
+
+// ── ML service call ───────────────────────────────────────────────────────────
+
+/**
+ * Calls the Python ML microservice.
+ * Returns null if the service is unreachable or times out.
+ */
+async function callMLService({ userId, enrolledIds, courses, limit }) {
+  if (!ML_URL) return null;
+
+  // Send a lightweight version of courses (no need for full content)
+  const lightCourses = courses.map((c) => ({
+    _id:               c._id,
+    courseName:        c.courseName,
+    courseDescription: c.courseDescription,
+    whatYouWillLearn:  c.whatYouWillLearn,
+    tag:               c.tag,
+    category:          c.category,
+    price:             c.price,
+    createdAt:         c.createdAt,
+    studentsEnrolled:  (c.studentsEnrolled || []).map(String),
+    ratingAndReviews:  (c.ratingAndReviews || []).map((r) => ({
+      _id:    r._id,
+      rating: r.rating,
+    })),
+  }));
+
+  try {
+    const { data } = await axios.post(
+      `${ML_URL}/recommend`,
+      { userId, enrolledIds: [...enrolledIds], courses: lightCourses, limit },
+      { timeout: ML_TIMEOUT },
+    );
+    return data; // { recommended: [{courseId, score}], method }
+  } catch (err) {
+    console.warn("[Recommend] ML service unavailable, falling back to heuristic:", err.message);
+    return null;
+  }
+}
+
+// ── Clean course for response ─────────────────────────────────────────────────
+
+const cleanCourse = (course, mlScore) => ({
+  ...course,
+  avgRating:       parseFloat(computeAvgRating(course.ratingAndReviews).toFixed(1)),
+  enrollmentCount: (course.studentsEnrolled || []).length,
+  mlScore:         mlScore != null ? parseFloat(mlScore.toFixed(4)) : undefined,
+  // Strip large arrays from response payload
+  studentsEnrolled: undefined,
+  ratingAndReviews: undefined,
+});
+
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 /**
  * GET /api/v1/course/recommendations
  * Optional auth (works for guests too).
  *
  * Query params:
- *   limit  - how many courses to return (default 20)
- *   page   - page number for pagination (default 1)
+ *   limit  – how many courses to return (default 20)
+ *   page   – page number (default 1)
  *
- * Logic:
- *   Logged-in student  => Personalised: courses sharing tags/category with enrolled courses
- *                         that the student has NOT yet enrolled in.
- *                         Falls back to trending if not enough personalised results.
- *   Guest / Instructor => Trending: top courses by score (enrollments + rating + recency)
- *
- * Response shape:
+ * Response:
  * {
  *   success: true,
  *   data: {
- *     recommended: [...],   // personalised or trending courses
- *     trending:    [...],   // global top courses by enrollment
- *     topRated:    [...],   // global top courses by avg rating
- *     categories:  [...],   // all available categories for filter chips
+ *     recommended: [...],
+ *     trending:    [...],
+ *     topRated:    [...],
+ *     categories:  [...],
+ *     meta: { method, mlAvailable }
  *   }
  * }
  */
@@ -52,122 +123,131 @@ exports.getRecommendations = async (req, res) => {
     const page  = parseInt(req.query.page)  || 1;
     const skip  = (page - 1) * limit;
 
-    // ---- Fetch ALL published courses (with populated refs needed for scoring) ----
-    const allCourses = await Course.find({ status: "Published" })
-      .populate("instructor", "firstName lastName")
-      .populate("category", "name")
-      .populate("ratingAndReviews", "rating")
-      .lean();
-
-    if (!allCourses || allCourses.length === 0) {
+    const allCourses = await fetchPublishedCourses();
+    if (!allCourses?.length) {
       return res.status(200).json({
         success: true,
-        data: { recommended: [], trending: [], topRated: [], categories: [] },
+        data: { recommended: [], trending: [], topRated: [], categories: [], meta: {} },
       });
     }
 
-    // ---- Score every course ----
-    const scored = allCourses.map((c) => ({ ...c, _score: scoreCourse(c) }));
+    // Pre-score every course heuristically (used for trending / topRated always)
+    const scored = allCourses.map((c) => ({ ...c, _hScore: heuristicScore(c) }));
 
-    // ---- Global Trending (by enrollment count) ----
+    // Global Trending
     const trending = [...scored]
       .sort((a, b) => (b.studentsEnrolled?.length || 0) - (a.studentsEnrolled?.length || 0))
-      .slice(0, 10);
+      .slice(0, 10)
+      .map((c) => cleanCourse(c));
 
-    // ---- Top Rated (by avg rating, min 1 review) ----
+    // Top Rated
     const topRated = [...scored]
       .filter((c) => c.ratingAndReviews?.length > 0)
       .sort((a, b) => computeAvgRating(b.ratingAndReviews) - computeAvgRating(a.ratingAndReviews))
-      .slice(0, 10);
+      .slice(0, 10)
+      .map((c) => cleanCourse(c));
 
-    // ---- Categories list ----
+    // Category list
     const categoryMap = {};
     allCourses.forEach((c) => {
-      if (c.category && c.category._id) {
-        categoryMap[c.category._id.toString()] = c.category.name;
-      }
+      if (c.category?._id) categoryMap[c.category._id.toString()] = c.category.name;
     });
     const categories = Object.entries(categoryMap).map(([id, name]) => ({ _id: id, name }));
 
-    // ---- Personalised recommendations (if authenticated student) ----
+    // ── Personalised recommendations ──────────────────────────────────────────
     let recommended = [];
+    let method      = "heuristic";
+    let mlAvailable = false;
+
+    // Determine enrolled courses if user is logged in
+    let userId     = null;
+    let enrolledIds = new Set();
 
     if (req.user) {
-      const userId = req.user.id;
-
-      // Get courses the user is enrolled in
+      userId = req.user.id;
       const userDoc = await User.findById(userId)
-        .populate({
-          path: "courses",
-          select: "tag category",
-        })
+        .populate({ path: "courses", select: "tag category" })
         .lean();
 
-      const enrolledIds = new Set(
-        (userDoc?.courses || []).map((c) => c._id.toString())
+      enrolledIds = new Set((userDoc?.courses || []).map((c) => c._id.toString()));
+    }
+
+    // ── Try ML service first ──────────────────────────────────────────────────
+    const mlResult = await callMLService({
+      userId,
+      enrolledIds,
+      courses: allCourses,
+      limit: limit + enrolledIds.size,   // request extra to cover enrolled filter
+    });
+
+    if (mlResult?.recommended?.length) {
+      mlAvailable = true;
+      method      = mlResult.method || "ml";
+
+      // Build a lookup for fast course hydration
+      const courseById = Object.fromEntries(
+        allCourses.map((c) => [c._id.toString(), c])
       );
 
-      if (enrolledIds.size > 0) {
-        // Collect tags and category IDs from enrolled courses
-        const preferredTags = new Set();
-        const preferredCategoryIds = new Set();
+      recommended = mlResult.recommended
+        .filter((r) => !enrolledIds.has(r.courseId))
+        .slice(skip, skip + limit)
+        .map((r) => {
+          const course = courseById[r.courseId];
+          return course ? cleanCourse(course, r.score) : null;
+        })
+        .filter(Boolean);
+    }
 
+    // ── Heuristic fallback ────────────────────────────────────────────────────
+    if (!recommended.length) {
+      method = "heuristic";
+
+      if (enrolledIds.size > 0 && req.user) {
+        // Tag / category boosting (original logic)
+        const userDoc = await User.findById(userId)
+          .populate({ path: "courses", select: "tag category" })
+          .lean();
+
+        const preferredTags = new Set();
+        const preferredCats = new Set();
         (userDoc?.courses || []).forEach((c) => {
           (c.tag || []).forEach((t) => preferredTags.add(t.toLowerCase()));
-          if (c.category) preferredCategoryIds.add(c.category.toString());
+          if (c.category) preferredCats.add(c.category.toString());
         });
 
-        // Score unenrolled courses by tag/category overlap
-        const personalised = scored
+        recommended = scored
           .filter((c) => !enrolledIds.has(c._id.toString()))
           .map((c) => {
-            let relevanceBoost = 0;
-
-            // Tag overlap
-            const courseTags = (c.tag || []).map((t) => t.toLowerCase());
-            courseTags.forEach((t) => {
-              if (preferredTags.has(t)) relevanceBoost += 20;
-            });
-
-            // Category match
-            if (c.category && preferredCategoryIds.has(c.category._id?.toString())) {
-              relevanceBoost += 15;
-            }
-
-            return { ...c, _score: c._score + relevanceBoost };
+            let boost = 0;
+            (c.tag || []).forEach((t) => { if (preferredTags.has(t.toLowerCase())) boost += 20; });
+            if (c.category && preferredCats.has(c.category._id?.toString())) boost += 15;
+            return { ...c, _hScore: c._hScore + boost };
           })
-          .sort((a, b) => b._score - a._score)
-          .slice(skip, skip + limit);
+          .sort((a, b) => b._hScore - a._hScore)
+          .slice(skip, skip + limit)
+          .map((c) => cleanCourse(c));
 
-        recommended = personalised;
+        method = "heuristic_personalised";
+      }
+
+      if (!recommended.length) {
+        recommended = scored
+          .sort((a, b) => b._hScore - a._hScore)
+          .slice(skip, skip + limit)
+          .map((c) => cleanCourse(c));
+        method = "heuristic_trending";
       }
     }
-
-    // Fallback for guests or new users with no enrolments
-    if (recommended.length === 0) {
-      recommended = [...scored]
-        .sort((a, b) => b._score - a._score)
-        .slice(skip, skip + limit);
-    }
-
-    // Strip internal _score before sending
-    const clean = (arr) =>
-      arr.map(({ _score, ...rest }) => ({
-        ...rest,
-        avgRating: parseFloat(computeAvgRating(rest.ratingAndReviews).toFixed(1)),
-        enrollmentCount: (rest.studentsEnrolled || []).length,
-        // Don't send the full array to keep payload small
-        studentsEnrolled: undefined,
-        ratingAndReviews: undefined,
-      }));
 
     return res.status(200).json({
       success: true,
       data: {
-        recommended: clean(recommended),
-        trending: clean(trending),
-        topRated: clean(topRated),
+        recommended,
+        trending,
+        topRated,
         categories,
+        meta: { method, mlAvailable, page, limit },
       },
     });
   } catch (error) {
@@ -175,7 +255,78 @@ exports.getRecommendations = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch recommendations",
-      error: error.message,
+      error:   error.message,
     });
+  }
+};
+
+// ── Trigger ML Training ───────────────────────────────────────────────────────
+
+/**
+ * POST /api/v1/course/recommendations/train   (Admin only)
+ * Fetches all data from DB and pushes it to the ML service for retraining.
+ */
+exports.triggerMLTraining = async (req, res) => {
+  if (!ML_URL) {
+    return res.status(503).json({ success: false, message: "ML service not configured" });
+  }
+
+  try {
+    const courses = await fetchPublishedCourses();
+    const users   = await User.find({ accountType: "Student" })
+      .select("_id courses")
+      .lean();
+
+    const { data } = await axios.post(
+      `${ML_URL}/train`,
+      { courses, users },
+      { timeout: 60_000 },   // training can take a moment
+    );
+
+    return res.status(200).json({ success: true, mlResponse: data });
+  } catch (error) {
+    console.error("ML training trigger error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/v1/course/:courseId/similar   (Public)
+ * Returns content-similar courses from the ML service.
+ */
+exports.getSimilarCourses = async (req, res) => {
+  const { courseId } = req.params;
+  const limit = parseInt(req.query.limit) || 5;
+
+  if (!ML_URL) {
+    return res.status(503).json({ success: false, message: "ML service not configured" });
+  }
+
+  try {
+    const { data } = await axios.get(
+      `${ML_URL}/similar/${courseId}?limit=${limit}`,
+      { timeout: ML_TIMEOUT },
+    );
+
+    // Hydrate with full course data
+    const ids     = (data.similar || []).map((r) => r.courseId);
+    const courses = await Course.find({ _id: { $in: ids }, status: "Published" })
+      .populate("instructor", "firstName lastName")
+      .populate("category",   "name")
+      .populate("ratingAndReviews", "rating")
+      .lean();
+
+    const scoreMap = Object.fromEntries((data.similar || []).map((r) => [r.courseId, r.score]));
+    const hydrated = ids
+      .map((id) => {
+        const c = courses.find((x) => x._id.toString() === id);
+        return c ? cleanCourse(c, scoreMap[id]) : null;
+      })
+      .filter(Boolean);
+
+    return res.status(200).json({ success: true, data: hydrated });
+  } catch (error) {
+    console.error("getSimilarCourses error:", error.message);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

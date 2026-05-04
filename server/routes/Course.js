@@ -1,128 +1,94 @@
-// Import the required modules
-const express = require("express")
-const router = express.Router()
+const express = require("express");
+const router  = express.Router();
 
-// Import the Controllers
-
-// Course Controllers Import
 const {
   createCourse,
   getAllCourses,
   getCourseDetails,
   getFullCourseDetails,
   editCourse,
-  getInstructorCourses,
   deleteCourse,
-  searchCourse,
-  instructorDetails,
-} = require("../controllers/Course")
+  getInstructorCourses,
+} = require("../controllers/Course");
 
-// Recommendations Controller Import
-const { getRecommendations } = require("../controllers/Recommend")
-
-// Categories Controllers Import
 const {
-  showAllCategories,
-  createCategory,
-  categoryPageDetails,
-} = require("../controllers/Category")
+  getRecommendations,
+  triggerMLTraining,
+  getSimilarCourses,
+} = require("../controllers/Recommend");
 
-// Sections Controllers Import
+const {
+  createCategory,
+  showAllCategories,
+  categoryPageDetails,
+} = require("../controllers/Category");
+
 const {
   createSection,
   updateSection,
   deleteSection,
-} = require("../controllers/Section")
+} = require("../controllers/Section");
 
-// Sub-Sections Controllers Import
 const {
   createSubSection,
   updateSubSection,
   deleteSubSection,
-} = require("../controllers/Subsection")
+} = require("../controllers/Subsection");
 
-// Rating Controllers Import
 const {
   createRating,
   getAverageRating,
   getAllRating,
-} = require("../controllers/RatingAndReview")
+} = require("../controllers/RatingAndReview");
 
 const { updateCourseProgress } = require("../controllers/courseProgress");
 
-// Importing Middlewares
-const { auth, isInstructor, isStudent, isAdmin } = require("../middlewares/auth")
+const {
+  auth,
+  isStudent,
+  isInstructor,
+  isAdmin,
+  optionalAuth,
+} = require("../middlewares/auth");
 
-// ******************************************************************************
-// Course routes
-// ******************************************************************************
-
-// Courses can Only be Created by Instructors
-router.post("/createCourse", auth, isInstructor, createCourse)
-//Add a Section to a Course
-router.post("/addSection", auth, isInstructor, createSection)
-// Update a Section
-router.post("/updateSection", auth, isInstructor, updateSection)
-// Delete a Section
-router.post("/deleteSection", auth, isInstructor, deleteSection)
-// Edit Sub Section
-router.post("/updateSubSection", auth, isInstructor, updateSubSection)
-// Delete Sub Section
-router.post("/deleteSubSection", auth, isInstructor, deleteSubSection)
-// Add a Sub Section to a Section
-router.post("/addSubSection", auth, isInstructor, createSubSection)
-// Get all Registered Courses
-router.get("/getAllCourses", getAllCourses)
-// Get Details for a Specific Courses
-router.post("/getCourseDetails", getCourseDetails)
-// Get Details for a Specific Courses
-router.post("/getFullCourseDetails", auth, getFullCourseDetails)
-// Edit Course routes
-router.post("/editCourse", auth, isInstructor, editCourse)
-// Get all Courses Under a Specific Instructor
-router.get("/getInstructorCourses", auth, isInstructor, getInstructorCourses)
-// Delete a Course
-router.delete("/deleteCourse", deleteCourse)
-// Search Course
-router.get("/searchCourse", searchCourse);
-// Get Instructor Details and their Courses
-router.get("/instructorDetails/:instructorId", instructorDetails);
-// Update Course Progress
-router.post("/updateCourseProgress", auth, isStudent, updateCourseProgress);
-
-// ******************************************************************************
-// Recommendations (optional auth - works for guests and logged-in users)
-// ******************************************************************************
-// Middleware wrapper: optionally decode token but don't reject unauthenticated
-const optionalAuth = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
-  try {
-    const jwt = require("jsonwebtoken");
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-  } catch (_) {
-    // Invalid/expired token - continue as guest
-  }
-  next();
-};
+// ── Recommendations ───────────────────────────────────────────────────────────
+// Works for guests (no token) and logged-in students (personalised)
 router.get("/recommendations", optionalAuth, getRecommendations);
 
-// ******************************************************************************
-// Category routes (Only by Admin)
-// ******************************************************************************
-// Category can Only be Created by Admin
-// TODO: Put IsAdmin Middleware here
-router.post("/createCategory", auth, isAdmin, createCategory)
-router.get("/showAllCategories", showAllCategories)
-router.post("/getCategoryPageDetails", categoryPageDetails)
+// Content-similar courses – shown on the course detail page
+router.get("/:courseId/similar", getSimilarCourses);
 
-// ******************************************************************************
-// Rating and Review
-// ******************************************************************************
-router.post("/createRating", auth, isStudent, createRating)
-router.get("/getAverageRating", getAverageRating)
-router.get("/getReviews", getAllRating)
+// Admin-only: push fresh MongoDB data to the ML service and retrain
+router.post("/recommendations/train", auth, isAdmin, triggerMLTraining);
 
-module.exports = router
+// ── Courses ───────────────────────────────────────────────────────────────────
+router.post("/addCourse",            auth, isInstructor, createCourse);
+router.get("/getAllCourses",          getAllCourses);
+router.post("/getCourseDetails",     getCourseDetails);
+router.post("/getFullCourseDetails", auth, isStudent, getFullCourseDetails);
+router.post("/editCourse",           auth, isInstructor, editCourse);
+router.get("/getInstructorCourses",  auth, isInstructor, getInstructorCourses);
+router.delete("/deleteCourse",       auth, isInstructor, deleteCourse);
+router.post("/updateCourseProgress", auth, isStudent, updateCourseProgress);
+
+// ── Categories ────────────────────────────────────────────────────────────────
+router.post("/createCategory",        auth, isAdmin, createCategory);
+router.get("/showAllCategories",      showAllCategories);
+router.post("/getCategoryPageDetail", categoryPageDetails);
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+router.post("/addSection",    auth, isInstructor, createSection);
+router.post("/updateSection", auth, isInstructor, updateSection);
+router.post("/deleteSection", auth, isInstructor, deleteSection);
+
+// ── Sub-sections ──────────────────────────────────────────────────────────────
+router.post("/addSubSection",    auth, isInstructor, createSubSection);
+router.post("/updateSubSection", auth, isInstructor, updateSubSection);
+router.post("/deleteSubSection", auth, isInstructor, deleteSubSection);
+
+// ── Ratings & Reviews ─────────────────────────────────────────────────────────
+router.post("/createRating",  auth, isStudent, createRating);
+router.get("/getAverageRating", getAverageRating);
+router.get("/getReviews",       getAllRating);
+
+module.exports = router;
