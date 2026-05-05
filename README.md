@@ -247,29 +247,35 @@ REACT_APP_RAZORPAY_KEY = YOUR_RAZORPAY_CREDENTIALS
 Also Create a new file named `.env` in the server folder of your project and add the following content:
 
 ```env
-MAIL_HOST = smtp.gmail.com
-MAIL_USER = 
-MAIL_PASS = 
-GOOGLE_CLIENT_ID = YOUR_OAUTH_CREDENTIALS
+API_KEY=
+API_SECRET=
+CLOUD_NAME=
+FOLDER_NAME=
 
-JWT_SECRET = 
-FOLDER_NAME =
+GOOGLE_CLIENT_ID=
 
-RAZORPAY_KEY = YOUR_RAZORPAY_CREDENTIALS
-RAZORPAY_SECRET = 
-CLOUD_NAME = 
-API_KEY = 
-API_SECRET =
+JWT_SECRET=
 
-MONGODB_URL = 
-PORT = 4000
-NODE_VERSION = 18.17.1
+MAIL_HOST= smtp.gmail.com
+MAIL_PASS=
+MAIL_USER=
 
-CLIENT = http://localhost:3000
+ML_SERVICE_URL=
+CLIENT=
 
+MONGODB_URL=
+NODE_VERSION=18.17.1
+
+OPENROUTER_API_KEY=
+PORT=4000
+
+RAZORPAY_KEY=
+RAZORPAY_SECRET=
 ```
 
-Replace the placeholder values with your actual Google OAuth, Gmail SMTP, Razorpay, MongoDB and JWT credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/), [Razorpay](https://razorpay.com), [MongoDB](https://mongodb.com) and [JWT](https://jwt.io)
+Replace the placeholder values with your actual Google OAuth, Cloudinary, Gmail SMTP, Razorpay, OpenRouter, MongoDB and JWT credentials. You can obtain these credentials by signing up on the [Google Cloud Console](https://cloud.google.com/), [Cloudinary](https://cloudinary.com/developers) [Razorpay](https://razorpay.com), [MongoDB](https://mongodb.com), [OpenRouter](https://openrouter.ai/) and [JWT](https://jwt.io)
+
+Note: Server, Frontend (Client) and ML-service all are deployed on different servers.
 
 **Running the Project**
 
