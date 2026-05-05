@@ -19,8 +19,16 @@ function getOpenRouterClient() {
   });
 }
 
-// Free model to use — change to any other free model on OpenRouter if needed
-const FREE_MODEL = "meta-llama/llama-3.3-8b-instruct:free";
+// ---------------------------------------------------------------------------
+// Free model priority list — tries each in order until one works
+// openrouter/free = OpenRouter's own router that picks any available free model
+// ---------------------------------------------------------------------------
+const FREE_MODELS = [
+  "openrouter/free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "mistralai/mistral-7b-instruct:free",
+];
 
 // ---------------------------------------------------------------------------
 // Helper: classify OpenRouter errors
@@ -31,7 +39,33 @@ function friendlyError(err) {
     return "AI quota reached. Please try again in a few minutes.";
   if (/api.?key|auth|401|403/i.test(msg))
     return "Invalid OpenRouter API key.";
+  if (/404|No endpoints found/i.test(msg))
+    return "AI model is temporarily unavailable. Please try again shortly.";
   return msg || "AI assistant is temporarily unavailable.";
+}
+
+// ---------------------------------------------------------------------------
+// Core helper: try models in order, return first successful response
+// ---------------------------------------------------------------------------
+async function callWithFallback(client, buildPayload) {
+  let lastError;
+  for (const model of FREE_MODELS) {
+    try {
+      const payload = buildPayload(model);
+      const completion = await client.chat.completions.create(payload);
+      return completion;
+    } catch (err) {
+      const msg = err?.message || "";
+      // Only fall through to next model on 404 / endpoint errors
+      if (/404|No endpoints found|no available/i.test(msg)) {
+        lastError = err;
+        continue;
+      }
+      // All other errors (auth, quota, etc.) bubble up immediately
+      throw err;
+    }
+  }
+  throw lastError || new Error("All free AI models are currently unavailable.");
 }
 
 /**
@@ -68,16 +102,7 @@ exports.chat = async (req, res) => {
 
     const systemPrompt =
       contextLines.length
-        ? `You are an expert AI tutor for StudyNotion, an online learning platform. You are helping a student with the following course:
-
-${contextLines.join("\n")}
-
-Your job:
-- Answer questions clearly and concisely about the course content.
-- Explain concepts, summarise topics, and help with exercises.
-- If a question is unrelated to learning, politely redirect the student.
-- Format your answers with markdown when it aids clarity (code blocks, bullet points, etc.).
-- Keep answers focused and practical.`
+        ? `You are an expert AI tutor for StudyNotion, an online learning platform. You are helping a student with the following course:\n\n${contextLines.join("\n")}\n\nYour job:\n- Answer questions clearly and concisely about the course content.\n- Explain concepts, summarise topics, and help with exercises.\n- If a question is unrelated to learning, politely redirect the student.\n- Format your answers with markdown when it aids clarity (code blocks, bullet points, etc.).\n- Keep answers focused and practical.`
         : `You are an expert AI tutor for StudyNotion, an online learning platform. Help students understand course content, answer questions, explain concepts, and guide learning. Be concise, clear, and educational.`;
 
     // Convert frontend message format to OpenAI format
@@ -89,12 +114,12 @@ Your job:
       })),
     ];
 
-    const completion = await client.chat.completions.create({
-      model: FREE_MODEL,
+    const completion = await callWithFallback(client, (model) => ({
+      model,
       messages: openaiMessages,
       max_tokens: 1024,
       temperature: 0.7,
-    });
+    }));
 
     const reply = completion.choices?.[0]?.message?.content || "";
     return res.status(200).json({ success: true, data: { reply } });
@@ -121,32 +146,14 @@ exports.describeCourse = async (req, res) => {
       .map((s) => `- ${s.sectionName}: ${s.subSection?.map((ss) => ss.title).join(", ")}`)
       .join("\n");
 
-    const prompt = `You are a professional course description writer for an online learning platform.
-Given the following raw course data, write a compelling, well-structured AI-generated course overview.
+    const prompt = `You are a professional course description writer for an online learning platform.\nGiven the following raw course data, write a compelling, well-structured AI-generated course overview.\n\nCourse Title: ${courseTitle}\n${instructor ? `Instructor: ${instructor}` : ""}\nRaw Description: ${description || "Not provided"}\nWhat students will learn: ${whatYouWillLearn || "Not provided"}\nCourse outline:\n${toc || "No sections yet"}\n\nRespond ONLY with a valid JSON object — no markdown fences, no extra text. Use this exact structure:\n{\n  "headline": "A one-line compelling course headline (max 15 words)",\n  "summary": "A 2-3 sentence engaging overview of the course",\n  "keyTopics": ["topic 1", "topic 2", "topic 3", "topic 4", "topic 5"],\n  "targetAudience": "Who this course is best for (1-2 sentences)",\n  "prerequisites": "What students should know before starting (1 sentence)",\n  "outcome": "What students will be able to do after completing this course (1-2 sentences)"\n}`;
 
-Course Title: ${courseTitle}
-${instructor ? `Instructor: ${instructor}` : ""}
-Raw Description: ${description || "Not provided"}
-What students will learn: ${whatYouWillLearn || "Not provided"}
-Course outline:
-${toc || "No sections yet"}
-
-Respond ONLY with a valid JSON object — no markdown fences, no extra text. Use this exact structure:
-{
-  "headline": "A one-line compelling course headline (max 15 words)",
-  "summary": "A 2-3 sentence engaging overview of the course",
-  "keyTopics": ["topic 1", "topic 2", "topic 3", "topic 4", "topic 5"],
-  "targetAudience": "Who this course is best for (1-2 sentences)",
-  "prerequisites": "What students should know before starting (1 sentence)",
-  "outcome": "What students will be able to do after completing this course (1-2 sentences)"
-}`;
-
-    const completion = await client.chat.completions.create({
-      model: FREE_MODEL,
+    const completion = await callWithFallback(client, (model) => ({
+      model,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1024,
       temperature: 0.7,
-    });
+    }));
 
     let text = completion.choices?.[0]?.message?.content?.trim() || "{}";
 
