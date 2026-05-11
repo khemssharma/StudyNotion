@@ -1,0 +1,29 @@
+name: Nightly ML Model Retrain
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight UTC
+  workflow_dispatch:      # Allow manual trigger from Actions tab
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake ML service (cold-start)
+        run: |
+          curl -s https://studynotion-ml.onrender.com || true
+
+      - name: Wait for ML service to be ready
+        run: sleep 30
+
+      - name: Trigger model retraining via Node.js API
+        run: |
+          curl -s -X POST https://studynotion-oylf.onrender.com/api/v1/course/recommendations/train \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            --fail \
+            --retry 3 \
+            --retry-delay 10
+
+      - name: Log retraining complete
+        run: echo "ML model retraining triggered successfully at $(date -u)"
