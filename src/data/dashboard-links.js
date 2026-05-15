@@ -1,4 +1,5 @@
 import { ACCOUNT_TYPE } from "../utils/constants";
+
 export const sidebarLinks = [
   {
     id: 1,
@@ -40,5 +41,33 @@ export const sidebarLinks = [
     path: "/dashboard/cart",
     type: ACCOUNT_TYPE.STUDENT,
     icon: "VscHistory",
+  },
+  {
+    id: 7,
+    name: "Admin Panel",
+    path: "/dashboard/admin",
+    type: ACCOUNT_TYPE.ADMIN,
+    icon: "VscDashboard",
+  },
+  {
+    id: 8,
+    name: "ML Insights",
+    path: "/dashboard/admin/ml-insights",
+    type: ACCOUNT_TYPE.ADMIN,
+    icon: "VscGraph",
+  },
+  {
+    id: 9,
+    name: "ML Training",
+    path: "/dashboard/admin/ml-training",
+    type: ACCOUNT_TYPE.ADMIN,
+    icon: "VscBeaker",
+  },
+  {
+    id: 10,
+    name: "Recommendations",
+    path: "/dashboard/admin/recommendations",
+    type: ACCOUNT_TYPE.ADMIN,
+    icon: "VscStarFull",
   },
 ];
