@@ -5,6 +5,14 @@
 html,
 body {
   overflow-x: hidden;
+    background-color: #000814;
+    color: #F1F2FF;
+    min-height: 100vh;
+}
+
+#root {
+  background-color: #000814;
+  min-height: 100vh;
 }
 
 /* ===== Scrollbar CSS ===== */
