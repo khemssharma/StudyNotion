@@ -39,8 +39,7 @@ export const courseEndpoints = {
   DELETE_SECTION_API: BASE_URL + "/course/deleteSection",
   DELETE_SUBSECTION_API: BASE_URL + "/course/deleteSubSection",
   DELETE_COURSE_API: BASE_URL + "/course/deleteCourse",
-  GET_FULL_COURSE_DETAILS_AUTHENTICATED:
-    BASE_URL + "/course/getFullCourseDetails",
+  GET_FULL_COURSE_DETAILS_AUTHENTICATED: BASE_URL + "/course/getFullCourseDetails",
   LECTURE_COMPLETION_API: BASE_URL + "/course/updateCourseProgress",
   CREATE_RATING_API: BASE_URL + "/course/createRating",
   RECOMMENDATIONS_API: BASE_URL + "/course/recommendations",
@@ -60,6 +59,7 @@ export const categories = {
 export const catalogData = {
   CATALOGPAGEDATA_API: BASE_URL + "/course/getCategoryPageDetail",
 }
+
 // CONTACT-US API
 export const contactusEndpoint = {
   CONTACT_US_API: BASE_URL + "/reach/contact",
@@ -75,16 +75,27 @@ export const settingsEndpoints = {
 
 // AI / GEMINI ENDPOINTS
 export const aiEndpoints = {
-  AI_CHAT_API:           BASE_URL + "/ai/chat",
+  AI_CHAT_API: BASE_URL + "/ai/chat",
   AI_DESCRIBE_COURSE_API: BASE_URL + "/ai/describe-course",
 }
 
 // ADMIN ANALYTICS ENDPOINTS
 export const adminEndpoints = {
-  OVERVIEW_API:         BASE_URL + "/analytics/overview",
+  OVERVIEW_API: BASE_URL + "/analytics/overview",
   ENROLLMENT_TREND_API: BASE_URL + "/analytics/enrollment-trend",
-  TOP_COURSES_API:      BASE_URL + "/course/recommendations",
-  RECENT_USERS_API:     BASE_URL + "/analytics/recent-users",
+  TOP_COURSES_API: BASE_URL + "/course/recommendations",
+  RECENT_USERS_API: BASE_URL + "/analytics/recent-users",
+}
+
+// ML / RECOMMENDATION ENDPOINTS (Admin)
+export const mlEndpoints = {
+  // Trigger ML model retraining (Admin only - POST)
+  ML_TRAIN_API: BASE_URL + "/course/recommendations/train",
+  // Get personalised / global recommendations with ML metadata
+  ML_RECOMMENDATIONS_API: BASE_URL + "/course/recommendations",
+  // Get similar courses for a given courseId (content-based)
+  ML_SIMILAR_COURSES_API: (courseId) =>
+    BASE_URL + `/course/${courseId}/similar`,
 }
 
 // SEARCH API
