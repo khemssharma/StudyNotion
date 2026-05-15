@@ -1,7 +1,19 @@
+# -------------------------------------------------------
+# StudyNotion ML Service – Inference (Render deployment)
+# Neural Collaborative Filtering (NCF) Edition
+# -------------------------------------------------------
+
+# Web framework
 flask==3.0.3
 flask-cors==4.0.1
 gunicorn==22.0.0
-scikit-learn==1.3.2
-scipy==1.11.4
+
+# Deep-learning inference (CPU build – Render free tier)
+# Use the CPU-only wheel to keep image size under 1 GB
+torch==2.3.1+cpu  --index-url https://download.pytorch.org/whl/cpu
+
+# Numerical helpers
 numpy==1.26.4
+
+# Database
 pymongo==4.8.0
