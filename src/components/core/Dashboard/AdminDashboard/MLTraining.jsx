@@ -24,7 +24,7 @@ export default function MLTraining() {
       const res = await apiConnector(
         "POST",
         mlEndpoints.ML_TRAIN_API,
-        {},
+        null,
         headers
       );
 

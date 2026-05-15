@@ -277,10 +277,32 @@ exports.triggerMLTraining = async (req, res) => {
       .select("_id courses")
       .lean();
 
+    // Slim the payload — strip large fields (courseContent, thumbnail, etc.)
+    // that are not needed by the ML service and cause maxBodyLength errors.
+    const lightCourses = courses.map((c) => ({
+      _id:               c._id,
+      courseName:        c.courseName,
+      courseDescription: c.courseDescription,
+      whatYouWillLearn:  c.whatYouWillLearn,
+      tag:               c.tag,
+      category:          c.category,
+      price:             c.price,
+      createdAt:         c.createdAt,
+      studentsEnrolled:  (c.studentsEnrolled || []).map(String),
+      ratingAndReviews:  (c.ratingAndReviews || []).map((r) => ({
+        _id:    r._id,
+        rating: r.rating,
+      })),
+    }));
+
     const { data } = await axios.post(
       `${ML_URL}/train`,
-      { courses, users },
-      { timeout: 60_000 },   // training can take a moment
+      { courses: lightCourses, users },
+      {
+        timeout:          60_000,   // training can take a moment
+        maxContentLength: Infinity, // remove axios incoming-response size cap
+        maxBodyLength:    Infinity, // remove axios outgoing-request size cap
+      },
     );
 
     return res.status(200).json({ success: true, mlResponse: data });
