@@ -1,18 +1,45 @@
+# render.yaml  —  StudyNotion NCF ML Service
+# Deploys the Flask inference API on Render.
+# Neural network TRAINING runs on Kaggle / Google Colab (GPU).
+# Only INFERENCE happens here (CPU-only PyTorch).
+
 services:
   - type: web
-    name: studynotion-ml-recommender
+    name: studynotion-ncf-inference
     env: python
-    plan: free          # upgrade to starter for persistent disk
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app --workers 1 --threads 2 --timeout 120
+    # plan: free       # Free tier: 512 MB RAM, sufficient for CPU NCF inference
+    # Upgrade to `starter` ($7/mo) if you need a persistent disk for model files
+    plan: free
+    rootDir: ml-service
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+
     envVars:
-      - key: MODEL_PATH
-        value: /opt/render/project/src/models
-      - key: PYTHON_VERSION
-        value: "3.11.0"
-    # Mount a persistent disk so trained model survives redeploys
-    # (requires at least Starter plan – comment out on Free tier)
+      # MongoDB connection (set in Render dashboard — never commit secrets)
+      - key: MONGO_URI
+        sync: false
+
+      # ---------------------------------------------------------------
+      # Model artifact delivery
+      # Option A (recommended for free tier): store model files in the
+      # repo under ml-service/models/ via Git LFS.
+      # Option B: set MODEL_DOWNLOAD_URL to a public URL and download
+      # during buildCommand.
+      # ---------------------------------------------------------------
+      - key: MODEL_SOURCE
+        value: git_lfs   # or "url" if using Option B
+
+      - key: MODEL_DOWNLOAD_URL
+        sync: false      # only needed for Option B
+
+    # -----------------------------------------------------------------
+    # Persistent Disk (optional, uncomment when upgrading from free)
+    # Allows model artifacts written at /var/data to survive redeploys.
+    # -----------------------------------------------------------------
     # disk:
-    #   name: ml-models
-    #   mountPath: /opt/render/project/src/models
+    #   name: ncf-models
+    #   mountPath: /var/data/models
     #   sizeGB: 1
