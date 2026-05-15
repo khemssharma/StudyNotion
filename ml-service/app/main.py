@@ -1,148 +1,178 @@
 """
-StudyNotion ML Recommendation Microservice
-==========================================
-Lightweight Flask service that exposes a recommendation API backed by:
-  1. Content-Based Filtering  – TF-IDF on course text + cosine similarity
-  2. Collaborative Filtering  – User-item matrix + cosine similarity (user-user)
-  3. Hybrid scoring           – weighted blend of both signals
+StudyNotion ML Recommendation Microservice  (NCF Edition)
+=========================================================
+Flask service backed by a Neural Collaborative Filtering model
+trained on Kaggle / Google Colab and deployed on Render.
 
-Designed to:
-  - Train locally (python scripts/train.py)
-  - Persist model artefacts to disk (models/)
-  - Run on Render (free tier friendly – single worker, < 512 MB RAM)
-  - Fall back gracefully when fewer than N users/courses exist
+Endpoints
+---------
+GET  /                         health-check
+POST /recommend                NCF-based personalised recommendations
+GET  /similar/<course_id>      item-embedding cosine similarity
+POST /train                    re-export id-maps + course_meta from live DB
+                               (full NN re-training happens on Kaggle/Colab)
 """
 
 import os
 import json
 import logging
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from .recommender import HybridRecommender
+from nn_recommender import NeuralRecommender
 
-logging.basicConfig(level=logging.INFO)
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-MODEL_PATH = os.environ.get("MODEL_PATH", "models")
-recommender = HybridRecommender(model_path=MODEL_PATH)
-
-# ── Lazy-load model on first request ─────────────────────────────────────────
-_model_loaded = False
-
-def ensure_model():
-    global _model_loaded
-    if not _model_loaded:
-        if recommender.load():
-            logger.info("Model loaded from disk.")
-        else:
-            logger.warning("No saved model found – recommendations will use cold-start fallback.")
-        _model_loaded = True
+# Singleton recommender — loaded once at startup
+recommender = NeuralRecommender()
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+@app.before_request
+def _startup_load():
+    """Lazy-load model artifacts on first request if not already loaded."""
+    global recommender
+    if not recommender.is_ready:
+        recommender.load()
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.route("/", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "service": "StudyNotion ML Recommender"})
+    return jsonify({
+        "status": "ok",
+        "service": "StudyNotion NCF Recommendation Service",
+        "model": "Neural Collaborative Filtering (NCF)",
+        "model_ready": recommender.is_ready,
+    })
 
 
 @app.route("/recommend", methods=["POST"])
 def recommend():
     """
-    POST /recommend
     Body (JSON):
-    {
-      "userId":      "mongo_object_id | null",
-      "enrolledIds": ["courseId1", "courseId2"],   // courses user already has
-      "courses":     [ <course objects from MongoDB> ],
-      "limit":       10
-    }
-
-    Returns:
-    {
-      "recommended": [ { "courseId": ..., "score": ... }, ... ],
-      "method": "hybrid | content | collaborative | fallback"
-    }
+      userId      str          – MongoDB ObjectId string
+      enrolledIds [str]        – already-enrolled course ids
+      courses     [{...}]      – full course catalogue from the caller
+      limit       int          – max results (default 10)
     """
-    ensure_model()
-    body = request.get_json(force=True, silent=True) or {}
+    data = request.get_json(force=True) or {}
+    user_id     = str(data.get("userId", ""))
+    enrolled    = [str(e) for e in data.get("enrolledIds", [])]
+    courses     = data.get("courses", [])
+    limit       = int(data.get("limit", 10))
 
-    user_id     = body.get("userId")
-    enrolled    = set(body.get("enrolledIds", []))
-    courses     = body.get("courses", [])
-    limit       = int(body.get("limit", 10))
-
+    if not user_id:
+        return jsonify({"error": "userId is required"}), 400
     if not courses:
-        return jsonify({"recommended": [], "method": "no_data"}), 200
+        return jsonify({"recommendations": [], "model": "ncf", "fallback": False})
 
+    t0 = time.time()
+    recs = recommender.recommend(user_id, enrolled, courses, limit)
+    elapsed = round((time.time() - t0) * 1000, 1)
+
+    logger.info("recommend user=%s recs=%d elapsed=%sms", user_id, len(recs), elapsed)
+    return jsonify({
+        "recommendations": recs,
+        "count": len(recs),
+        "model": "ncf",
+        "model_ready": recommender.is_ready,
+        "latency_ms": elapsed,
+    })
+
+
+@app.route("/similar/<course_id>", methods=["GET"])
+def similar(course_id: str):
+    """
+    Query params:
+      courses  – JSON-encoded array of course dicts (passed by caller)
+      limit    – int (default 5)
+    """
+    limit   = int(request.args.get("limit", 5))
+    courses_raw = request.args.get("courses", "[]")
     try:
-        results, method = recommender.recommend(
-            user_id=user_id,
-            enrolled_ids=enrolled,
-            courses=courses,
-            limit=limit,
-        )
-        return jsonify({"recommended": results, "method": method})
-    except Exception as exc:
-        logger.exception("Recommendation error")
-        return jsonify({"error": str(exc)}), 500
+        courses = json.loads(courses_raw)
+    except Exception:
+        courses = []
+
+    sims = recommender.similar_courses(course_id, courses, limit)
+    return jsonify({
+        "courseId": course_id,
+        "similar": sims,
+        "count": len(sims),
+        "model": "ncf-item-embeddings",
+    })
 
 
 @app.route("/train", methods=["POST"])
 def train():
     """
-    POST /train
-    Body (JSON):
-    {
-      "courses": [ <course objects> ],
-      "users":   [ <user objects with courses array> ]
-    }
+    This endpoint does NOT retrain the neural network in-process
+    (that runs on Kaggle / Google Colab with GPU).
 
-    Triggers an in-process retraining and saves artefacts to disk.
-    Call this from the Node.js server after bulk data is available,
-    or from a nightly cron job.
+    What it DOES do:
+      1. Accepts fresh courses + users from the caller.
+      2. Writes updated course_meta.json to ml-service/models/ so the
+         inference service stays current without a full retrain.
+      3. Returns instructions for triggering a Kaggle notebook run
+         when a full retrain is needed.
     """
-    body    = request.get_json(force=True, silent=True) or {}
-    courses = body.get("courses", [])
-    users   = body.get("users", [])
+    data    = request.get_json(force=True) or {}
+    courses = data.get("courses", [])
+    users   = data.get("users", [])
 
-    if not courses:
-        return jsonify({"success": False, "message": "No course data provided"}), 400
+    models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
+    os.makedirs(models_dir, exist_ok=True)
 
-    try:
-        recommender.train(courses=courses, users=users)
-        recommender.save()
-        global _model_loaded
-        _model_loaded = True
-        return jsonify({
-            "success": True,
-            "message": f"Trained on {len(courses)} courses, {len(users)} users.",
-        })
-    except Exception as exc:
-        logger.exception("Training error")
-        return jsonify({"success": False, "error": str(exc)}), 500
+    # Persist course metadata so popularity fallback stays fresh
+    if courses:
+        now = time.time()
+        for c in courses:
+            if "createdAt" in c and isinstance(c["createdAt"], str):
+                try:
+                    from datetime import datetime
+                    c["createdAt_ts"] = datetime.fromisoformat(
+                        c["createdAt"].replace("Z", "+00:00")
+                    ).timestamp()
+                except Exception:
+                    c["createdAt_ts"] = now
+
+        meta_path = os.path.join(models_dir, "course_meta.json")
+        with open(meta_path, "w") as f:
+            json.dump(courses, f)
+        logger.info("Updated course_meta.json with %d courses", len(courses))
+
+    return jsonify({
+        "status": "metadata_updated",
+        "courses_updated": len(courses),
+        "nn_retrain": {
+            "note": "Full NCF retraining runs on Kaggle/Colab with GPU.",
+            "trigger": "Push new data to the connected Kaggle dataset and re-run notebook studynotion-ncf-training",
+            "artifact_upload": "After training, upload ncf_model.pt + user_id_map.json + course_id_map.json to Render env or Git LFS",
+        },
+        "model_ready": recommender.is_ready,
+    })
 
 
-@app.route("/similar/<course_id>", methods=["GET"])
-def similar(course_id):
-    """
-    GET /similar/<courseId>?limit=5
-    Returns courses similar to the given course (content-based).
-    """
-    ensure_model()
-    limit = int(request.args.get("limit", 5))
-    try:
-        results = recommender.similar_courses(course_id=course_id, limit=limit)
-        return jsonify({"similar": results})
-    except Exception as exc:
-        logger.exception("Similar-courses error")
-        return jsonify({"error": str(exc)}), 500
-
+# ---------------------------------------------------------------------------
+# Entry-point (local dev only — Render uses gunicorn via wsgi.py)
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port)
+    # Load model at startup for local dev
+    recommender.load()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
