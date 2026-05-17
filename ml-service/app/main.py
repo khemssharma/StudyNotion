@@ -25,7 +25,7 @@ import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from nn_recommender import NeuralRecommender
+from .nn_recommender import NeuralRecommender
 
 # ---------------------------------------------------------------------------
 # App setup
