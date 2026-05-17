@@ -1,14 +1,11 @@
-# render.yaml  —  StudyNotion NCF ML Service
-# Deploys the Flask inference API on Render.
-# Neural network TRAINING runs on Kaggle / Google Colab (GPU).
-# Only INFERENCE happens here (CPU-only PyTorch).
+# render.yaml - StudyNotion ML Service (NCF Inference)
+# Training runs on Kaggle/Colab (GPU). Inference runs here (CPU).
+# Service works in popularity-fallback mode until NCF artifacts are uploaded.
 
 services:
   - type: web
-    name: studynotion-ncf-inference
+    name: Studynotion_ML
     env: python
-    # plan: free       # Free tier: 512 MB RAM, sufficient for CPU NCF inference
-    # Upgrade to `starter` ($7/mo) if you need a persistent disk for model files
     plan: free
     rootDir: ml-service
     buildCommand: |
@@ -18,28 +15,7 @@ services:
     healthCheckPath: /
 
     envVars:
-      # MongoDB connection (set in Render dashboard — never commit secrets)
       - key: MONGO_URI
         sync: false
-
-      # ---------------------------------------------------------------
-      # Model artifact delivery
-      # Option A (recommended for free tier): store model files in the
-      # repo under ml-service/models/ via Git LFS.
-      # Option B: set MODEL_DOWNLOAD_URL to a public URL and download
-      # during buildCommand.
-      # ---------------------------------------------------------------
-      - key: MODEL_SOURCE
-        value: git_lfs   # or "url" if using Option B
-
-      - key: MODEL_DOWNLOAD_URL
-        sync: false      # only needed for Option B
-
-    # -----------------------------------------------------------------
-    # Persistent Disk (optional, uncomment when upgrading from free)
-    # Allows model artifacts written at /var/data to survive redeploys.
-    # -----------------------------------------------------------------
-    # disk:
-    #   name: ncf-models
-    #   mountPath: /var/data/models
-    #   sizeGB: 1
+      - key: PYTHON_VERSION
+        value: 3.11.9
