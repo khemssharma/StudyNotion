@@ -1,5 +1,5 @@
 # -------------------------------------------------------
-# StudyNotion ML Service – Inference (Render deployment)
+# StudyNotion ML Service - Inference (Render deployment)
 # Neural Collaborative Filtering (NCF) Edition
 # -------------------------------------------------------
 
@@ -8,12 +8,12 @@ flask==3.0.3
 flask-cors==4.0.1
 gunicorn==22.0.0
 
-# Deep-learning inference (CPU build – Render free tier)
-# Use the CPU-only wheel to keep image size under 1 GB
-torch==2.3.1+cpu  --index-url https://download.pytorch.org/whl/cpu
-
-# Numerical helpers
+# Numerical helpers (always needed)
 numpy==1.26.4
 
 # Database
 pymongo==4.8.0
+
+# PyTorch - CPU only (installed via build command with extra-index-url)
+# See render.yaml buildCommand - do not add torch here directly
+# torch is installed separately to avoid the +cpu suffix pip issue
