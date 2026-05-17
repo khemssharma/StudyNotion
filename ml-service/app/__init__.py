@@ -1,2 +1,1 @@
-from .main import app
-from .recommender import HybridRecommender
+# StudyNotion ML Service - app package
