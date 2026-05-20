@@ -173,8 +173,27 @@ class NeuralRecommender:
             cid = str(c.get("_id", ""))
             if cid not in candidate_ids:
                 continue
-            enroll  = float(c.get("studentsEnrolled", 0) or 0)
-            rating  = float(c.get("ratingAndReviews", 1) or 1)
+
+            # studentsEnrolled is a MongoDB array of ObjectIds — use len()
+            raw_enroll = c.get("studentsEnrolled", 0)
+            enroll = float(len(raw_enroll) if isinstance(raw_enroll, (list, tuple)) else (raw_enroll or 0))
+
+            # ratingAndReviews is also an array of review docs — use len()
+            # avg_rating is the pre-computed float field (if present), fall back to 1
+            raw_rating = c.get("ratingAndReviews", None)
+            if isinstance(raw_rating, (list, tuple)):
+                rating = float(len(raw_rating)) if raw_rating else 1.0
+            else:
+                rating = float(raw_rating or 1)
+
+            # Use pre-computed average rating if available (more meaningful than count)
+            avg = c.get("avgRating") or c.get("averageRating")
+            if avg is not None:
+                try:
+                    rating = float(avg) or 1.0
+                except (TypeError, ValueError):
+                    pass
+
             created = float(c.get("createdAt_ts", now) or now)
             decay   = np.exp(-0.1 * (now - created) / 86400 / 30)
             scored.append((cid, enroll * rating * decay))

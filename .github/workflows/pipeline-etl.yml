@@ -1,0 +1,40 @@
+name: Nightly Data Pipeline ETL
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 01:00 UTC every night (after ML retrain at 00:00)
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Target date (YYYY-MM-DD, default = yesterday)'
+        required: false
+        default: ''
+
+jobs:
+  etl:
+    name: Run Nightly ETL Aggregation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake server (cold-start on free tier)
+        run: curl -s https://studynotion-oylf.onrender.com || true
+
+      - name: Wait for server to be ready
+        run: sleep 15
+
+      - name: Trigger ETL aggregation
+        run: |
+          DATE_PARAM=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATE_PARAM=", \"date\": \"${{ github.event.inputs.date }}\""
+          fi
+
+          curl -s -X POST https://studynotion-oylf.onrender.com/api/v1/pipeline/aggregate \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -d "{\"trigger\": \"github-actions\"${DATE_PARAM}}" \
+            --fail \
+            --retry 3 \
+            --retry-delay 10
+
+      - name: Log completion
+        run: echo "ETL aggregation triggered at $(date -u)"

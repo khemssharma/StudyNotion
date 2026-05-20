@@ -1,73 +1,156 @@
-const express = require("express");
-const app = express();
+/**
+ * server/index.js — StudyNotion Express Server
+ *
+ * Added in this revision
+ * ──────────────────────
+ * • Data Engineering Pipeline  (/api/v1/pipeline)
+ * • Scalability middleware stack (compression, helmet, rate-limiting, timeouts)
+ * • MongoDB connection pool tuning (maxPoolSize: 20)
+ * • Nightly ETL cron (node-schedule)
+ * • Graceful shutdown
+ */
 
-const userRoutes = require("./routes/User");
-const profileRoutes = require("./routes/Profile");
-const paymentRoutes = require("./routes/Payments");
-const courseRoutes = require("./routes/Course");
-const contactUsRoute = require("./routes/Contact");
-const analyticsRoutes = require("./routes/Analytics");
-const aiRoutes = require("./routes/AI");
-const database = require("./config/database");
+const express      = require("express");
 const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const {cloudinaryConnect } = require("./config/cloudinary");
-const fileUpload = require("express-fileupload");
-const dotenv = require("dotenv");
+const cors         = require("cors");
+const fileUpload   = require("express-fileupload");
+const dotenv       = require("dotenv");
+const schedule     = require("node-schedule");
 
 dotenv.config();
+
+// ── Scalability middleware (compression, helmet, rate-limits, timeout) ────
+const {
+  compressionMiddleware,
+  helmetMiddleware,
+  globalLimiter,
+  authLimiter,
+  aiLimiter,
+  timeoutMiddleware,
+  JSON_BODY_LIMIT,
+  setPublicCache,
+  mongooseOptions,
+  registerGracefulShutdown,
+} = require("./pipeline/scalability");
+
+// ── Data Engineering Pipeline ─────────────────────────────────────────────
+const pipelineRoutes         = require("./pipeline/pipelineRoutes");
+const { runNightlyAggregation } = require("./pipeline/eventIngestion");
+
+// ── Application routes ────────────────────────────────────────────────────
+const userRoutes       = require("./routes/User");
+const profileRoutes    = require("./routes/Profile");
+const paymentRoutes    = require("./routes/Payments");
+const courseRoutes     = require("./routes/Course");
+const contactUsRoute   = require("./routes/Contact");
+const analyticsRoutes  = require("./routes/Analytics");
+const aiRoutes         = require("./routes/AI");
+
+// ── Infrastructure ────────────────────────────────────────────────────────
+const database  = require("./config/database");
+const { cloudinaryConnect } = require("./config/cloudinary");
+
+const app  = express();
 const PORT = process.env.PORT || 4000;
 
-// set 'cors' header differently for http & mobile requests 
+// ────────────────────────────────────────────────────────────────────────────
+// 1. CORS
+// ────────────────────────────────────────────────────────────────────────────
 const corsOptions = {
-    origin: (origin, callback) => {
-        // Allow all origins
-        callback(null, true);
-    },
-    credentials: true,
+  origin: (origin, callback) => callback(null, true),
+  credentials: true,
 };
-//database connect (skip in tests)
-if (process.env.NODE_ENV !== 'test') {
-	database.connect();
-}
-//middlewares
-app.use(express.json());
-app.use(cookieParser());
-// allow all origins for requests from the mobile app
 app.use(cors(corsOptions));
 
-app.use(
-	fileUpload({
-		useTempFiles:true,
-		tempFileDir:"/tmp",
-	})
-)
-//cloudinary connection (skip in tests)
-if (process.env.NODE_ENV !== 'test') {
-	cloudinaryConnect();
+// ────────────────────────────────────────────────────────────────────────────
+// 2. Security & Compression  (must come before routes)
+// ────────────────────────────────────────────────────────────────────────────
+app.use(helmetMiddleware);
+app.use(compressionMiddleware);
+
+// ────────────────────────────────────────────────────────────────────────────
+// 3. Body parsing & file uploads
+// ────────────────────────────────────────────────────────────────────────────
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
+app.use(cookieParser());
+app.use(fileUpload({ useTempFiles: true, tempFileDir: "/tmp" }));
+
+// ────────────────────────────────────────────────────────────────────────────
+// 4. Request timeout (30 s)
+// ────────────────────────────────────────────────────────────────────────────
+app.use(timeoutMiddleware);
+
+// ────────────────────────────────────────────────────────────────────────────
+// 5. Global rate-limiter (500 req / 15 min per IP)
+// ────────────────────────────────────────────────────────────────────────────
+app.use(globalLimiter);
+
+// ────────────────────────────────────────────────────────────────────────────
+// 6. Database & Cloudinary  (skip in tests)
+// ────────────────────────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== "test") {
+  // Connect with tuned pool (maxPoolSize: 20)
+  const mongoose = require("mongoose");
+  mongoose
+    .connect(process.env.MONGODB_URL, mongooseOptions)
+    .then(() => console.log("DB Connected Successfully"))
+    .catch((err) => { console.error("DB Connection Failed:", err); process.exit(1); });
+
+  cloudinaryConnect();
 }
 
-//routes
-app.use("/api/v1/auth", userRoutes);
-app.use("/api/v1/profile", profileRoutes);
-app.use("/api/v1/course", courseRoutes);
-app.use("/api/v1/payment", paymentRoutes);
-app.use("/api/v1/reach", contactUsRoute);
-app.use("/api/v1/analytics", analyticsRoutes);
-app.use("/api/v1/ai", aiRoutes);
+// ────────────────────────────────────────────────────────────────────────────
+// 7. Routes — with per-path rate limiters where needed
+// ────────────────────────────────────────────────────────────────────────────
 
-//def route
-app.get("/", (req, res) => {
-	return res.json({
-		success:true,
-		message:'Your server is up and running....'
-	});
-});
+// Auth routes get a stricter limiter (brute-force protection)
+app.use("/api/v1/auth",     authLimiter, userRoutes);
 
-if (process.env.NODE_ENV !== 'test') {
-	app.listen(PORT, () => {
-		console.log(`App is running at ${PORT}`)
-	})
+// AI routes get their own limiter (LLM cost protection)
+app.use("/api/v1/ai",       aiLimiter, aiRoutes);
+
+// Public catalogue routes benefit from browser/CDN caching
+app.use("/api/v1/course",   setPublicCache(30), courseRoutes);
+
+app.use("/api/v1/profile",  profileRoutes);
+app.use("/api/v1/payment",  paymentRoutes);
+app.use("/api/v1/reach",    contactUsRoute);
+app.use("/api/v1/analytics",analyticsRoutes);
+
+// ── Data Engineering Pipeline ─────────────────────────────────────────────
+app.use("/api/v1/pipeline", pipelineRoutes);
+
+// ────────────────────────────────────────────────────────────────────────────
+// 8. Health check
+// ────────────────────────────────────────────────────────────────────────────
+app.get("/", (req, res) =>
+  res.json({ success: true, message: "StudyNotion server is running." })
+);
+
+// ────────────────────────────────────────────────────────────────────────────
+// 9. Nightly ETL cron (runs at 01:00 UTC every day)
+// ────────────────────────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== "test") {
+  schedule.scheduleJob("0 1 * * *", async () => {
+    console.log("[Cron] Starting nightly ETL aggregation…");
+    try {
+      const result = await runNightlyAggregation();
+      console.log("[Cron] ETL complete:", result);
+    } catch (err) {
+      console.error("[Cron] ETL failed:", err.message);
+    }
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// 10. Start server & register graceful shutdown
+// ────────────────────────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== "test") {
+  const server = app.listen(PORT, () =>
+    console.log(`StudyNotion running on port ${PORT}`)
+  );
+  registerGracefulShutdown(server);
 }
 
 module.exports = app;

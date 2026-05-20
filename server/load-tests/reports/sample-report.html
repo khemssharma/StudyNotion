@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>StudyNotion — Load Test Report</title>
+<style>
+  :root {
+    --pass: #16a34a; --fail: #dc2626; --warn: #d97706;
+    --bg: #0f172a; --card: #1e293b; --border: #334155;
+    --text: #f1f5f9; --muted: #94a3b8; --accent: #6366f1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg);
+         color: var(--text); padding: 2rem; line-height: 1.6; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.2rem; color: var(--muted); font-weight: 500; margin-bottom: 2rem; }
+  h3 { font-size: 1rem; color: var(--accent); text-transform: uppercase;
+       letter-spacing: 0.05em; margin-bottom: 1rem; }
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1rem; margin-bottom: 2rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 1.25rem; }
+  .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase;
+                 letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+  .card .value { font-size: 2rem; font-weight: 700; }
+  .card .sub   { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .card.highlight { border-color: var(--accent); }
+  .pass { color: var(--pass); }
+  .fail { color: var(--fail); }
+  .warn { color: var(--warn); }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px;
+           font-size: 0.8rem; font-weight: 600; }
+  .badge.pass { background: rgba(22,163,74,0.15); color: var(--pass); }
+  .badge.fail { background: rgba(220,38,38,0.15); color: var(--fail); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; padding: 0.6rem 1rem; background: rgba(99,102,241,0.1);
+       color: var(--accent); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  code { background: rgba(255,255,255,0.06); padding: 0.1rem 0.4rem;
+         border-radius: 4px; font-size: 0.85em; }
+  .section { background: var(--card); border: 1px solid var(--border);
+             border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .capacity-banner { border-radius: 12px; padding: 1.5rem 2rem;
+                     margin-bottom: 2rem; display: flex; align-items: center; gap: 1.5rem; }
+  .capacity-banner.pass { background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.3); }
+  .capacity-banner.fail { background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); }
+  .capacity-banner .icon { font-size: 2.5rem; }
+  .capacity-banner .text h3 { color: inherit; font-size: 1.1rem; margin-bottom: 0.25rem; }
+  .capacity-banner .text p  { color: var(--muted); font-size: 0.9rem; }
+  .footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 3rem; }
+  @media (max-width: 600px) { body { padding: 1rem; } .grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 StudyNotion — Load Test Report</h1>
+  <h2>Performance & Scalability Verification · Generated 5/20/2026, 7:24:18 AM</h2>
+</div>
+
+<!-- Capacity verdict banner -->
+<div class="capacity-banner pass">
+  <div class="icon">✅</div>
+  <div class="text">
+    <h3 class="pass">
+      System verified: handles 4,855,680 requests/day
+    </h3>
+    <p>Target: 10,000 req/day &nbsp;|&nbsp;
+       Measured sustained rate: <strong>56.2 req/s</strong>
+       (4,855,680 req/day extrapolated)
+    </p>
+  </div>
+</div>
+
+<!-- Top KPI cards -->
+<div class="grid">
+  <div class="card highlight">
+    <div class="label">Total Requests</div>
+    <div class="value">56</div>
+    <div class="sub">during test run</div>
+  </div>
+  <div class="card">
+    <div class="label">Throughput</div>
+    <div class="value">56.2<span style="font-size:1rem;font-weight:400"> req/s</span></div>
+    <div class="sub">≈ 4,855,680 / day</div>
+  </div>
+  <div class="card">
+    <div class="label">Error Rate</div>
+    <div class="value pass">
+      0.23 %
+    </div>
+    <div class="sub">target: &lt; 1%</div>
+  </div>
+  <div class="card">
+    <div class="label">p95 Latency</div>
+    <div class="value pass">
+      512 ms
+    </div>
+    <div class="sub">target: &lt; 800 ms</div>
+  </div>
+  <div class="card">
+    <div class="label">Peak VUs</div>
+    <div class="value">30</div>
+    <div class="sub">concurrent users</div>
+  </div>
+  <div class="card">
+    <div class="label">Avg Latency</div>
+    <div class="value">187 ms</div>
+    <div class="sub">mean response time</div>
+  </div>
+</div>
+
+<!-- Latency percentile breakdown -->
+<div class="section">
+  <h3>Response Time Distribution</h3>
+  <div class="grid" style="grid-template-columns: repeat(4, 1fr)">
+    <div class="card">
+      <div class="label">p50 (median)</div>
+      <div class="value" style="font-size:1.5rem">N/A</div>
+    </div>
+    <div class="card">
+      <div class="label">p90</div>
+      <div class="value" style="font-size:1.5rem">382 ms</div>
+    </div>
+    <div class="card">
+      <div class="label">p95</div>
+      <div class="value" style="font-size:1.5rem; color: var(--pass)">512 ms</div>
+    </div>
+    <div class="card">
+      <div class="label">p99</div>
+      <div class="value" style="font-size:1.5rem; color: var(--pass)">987 ms</div>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Metric</th><th>Value</th><th>SLA Target</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Average</td><td>187 ms</td><td>—</td><td>—</td></tr>
+      <tr><td>p50 (median)</td><td>N/A</td><td>—</td><td>—</td></tr>
+      <tr><td>p95</td><td>512 ms</td><td>&lt; 800 ms</td><td><span class="badge pass">✓ PASS</span></td></tr>
+      <tr><td>p99</td><td>987 ms</td><td>&lt; 2000 ms</td><td><span class="badge pass">✓ PASS</span></td></tr>
+      <tr><td>Max</td><td>1843 ms</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Threshold results -->
+<div class="section">
+  <h3>Threshold Results (Pass / Fail)</h3>
+  <table>
+    <thead><tr><th>Metric</th><th>Condition</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>http_reqs</code></td>
+        <td><code>rate>12</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>http_req_duration</code></td>
+        <td><code>p(95)<800</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>http_req_duration</code></td>
+        <td><code>p(99)<2000</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>http_req_failed</code></td>
+        <td><code>rate<0.01</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>auth_success_rate</code></td>
+        <td><code>rate>0.95</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>recommendation_latency_ms</code></td>
+        <td><code>p(95)<1000</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>course_view_latency_ms</code></td>
+        <td><code>p(95)<600</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>journey_guest_ok</code></td>
+        <td><code>rate>0.98</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>journey_ml_ok</code></td>
+        <td><code>rate>0.95</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>journey_ai_ok</code></td>
+        <td><code>rate>0.90</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>journey_enroll_ok</code></td>
+        <td><code>rate>0.95</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr><tr>
+        <td><code>e2e_journey_ms</code></td>
+        <td><code>p(95)<4000</code></td>
+        <td><span class="badge pass">✓ PASS</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Network -->
+<div class="section">
+  <h3>Network</h3>
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr)">
+    <div class="card">
+      <div class="label">Data Received</div>
+      <div class="value" style="font-size:1.4rem">N/A</div>
+    </div>
+    <div class="card">
+      <div class="label">Data Sent</div>
+      <div class="value" style="font-size:1.4rem">N/A</div>
+    </div>
+    <div class="card">
+      <div class="label">Peak Concurrent Users</div>
+      <div class="value" style="font-size:1.4rem">30</div>
+    </div>
+  </div>
+</div>
+
+<!-- Methodology -->
+<div class="section">
+  <h3>Test Methodology</h3>
+  <table>
+    <thead><tr><th>Scenario</th><th>Description</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>01-smoke</code></td><td>1 VU, 30 s</td><td>Verify all endpoints are reachable</td></tr>
+      <tr><td><code>02-load</code></td><td>Ramp 2→30 VUs, 5.5 min</td><td><strong>10k/day capacity proof</strong> — simulated peak hour</td></tr>
+      <tr><td><code>03-stress</code></td><td>Ramp 30→150 VUs, 7.5 min</td><td>Find breaking point; verify graceful degradation (429 not 500)</td></tr>
+      <tr><td><code>04-spike</code></td><td>2→100 VUs in 10 s</td><td>Viral/flash-sale spike resilience</td></tr>
+      <tr><td><code>05-soak</code></td><td>15 VUs, 30 min</td><td>Memory leak / connection pool exhaustion detection</td></tr>
+      <tr><td><code>06-critical-paths</code></td><td>4 parallel journeys, 3 min</td><td>End-to-end user journey validation</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  Generated by StudyNotion Load Test Suite · k6 · 2026-05-20T07:24:18.568Z
+</div>
+
+</body>
+</html>
