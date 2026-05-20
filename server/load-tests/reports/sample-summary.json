@@ -1,0 +1,96 @@
+{
+  "metrics": {
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": { "count": 18432, "rate": 56.2 },
+      "thresholds": { "rate>12": { "ok": true } }
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 187.4, "min": 12.1, "med": 143.2,
+        "max": 1842.6, "p(90)": 381.5, "p(95)": 512.3, "p(99)": 987.1
+      },
+      "thresholds": {
+        "p(95)<800":  { "ok": true },
+        "p(99)<2000": { "ok": true }
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.0023, "passes": 42, "fails": 18390 },
+      "thresholds": { "rate<0.01": { "ok": true } }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": { "value": 30, "min": 2, "max": 30 }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": { "count": 48203621, "rate": 146892.4 }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": { "count": 4103291, "rate": 12503.1 }
+    },
+    "auth_success_rate": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.973 },
+      "thresholds": { "rate>0.95": { "ok": true } }
+    },
+    "recommendation_latency_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": { "avg": 312.4, "p(95)": 687.2, "p(99)": 891.5 },
+      "thresholds": { "p(95)<1000": { "ok": true } }
+    },
+    "course_view_latency_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": { "avg": 98.3, "p(95)": 287.4 },
+      "thresholds": { "p(95)<600": { "ok": true } }
+    },
+    "journey_guest_ok": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.991 },
+      "thresholds": { "rate>0.98": { "ok": true } }
+    },
+    "journey_ml_ok": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.968 },
+      "thresholds": { "rate>0.95": { "ok": true } }
+    },
+    "journey_ai_ok": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.921 },
+      "thresholds": { "rate>0.90": { "ok": true } }
+    },
+    "journey_enroll_ok": {
+      "type": "rate",
+      "contains": "default",
+      "values": { "rate": 0.974 },
+      "thresholds": { "rate>0.95": { "ok": true } }
+    },
+    "e2e_journey_ms": {
+      "type": "trend",
+      "contains": "time",
+      "values": { "avg": 1843.2, "p(95)": 3412.8 },
+      "thresholds": { "p(95)<4000": { "ok": true } }
+    },
+    "business_errors": {
+      "type": "counter",
+      "contains": "default",
+      "values": { "count": 42, "rate": 0.13 }
+    }
+  }
+}
