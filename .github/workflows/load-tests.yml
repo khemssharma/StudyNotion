@@ -1,0 +1,678 @@
+# ══════════════════════════════════════════════════════════════════════════
+# load-tests.yml — StudyNotion Performance & Load Testing Pipeline
+# ══════════════════════════════════════════════════════════════════════════
+#
+# TRIGGERS
+# ────────
+#   • Every push / PR to main or develop   → smoke test only (fast, < 1 min)
+#   • Nightly at 02:00 UTC                 → full suite (smoke + load + spike
+#                                            + critical paths + soak)
+#   • Manual dispatch                      → choose which suite to run and
+#                                            which environment to target
+#
+# JOBS (run in dependency order)
+# ──────────────────────────────
+#   smoke          Always runs first. Gates all other jobs.
+#   load           10k/day capacity proof. Runs after smoke.
+#   stress         Breaking-point test.   Runs after load (nightly/manual).
+#   spike          Viral-surge test.      Runs after smoke (nightly/manual).
+#   critical-paths User journey tests.   Runs after smoke (always on main).
+#   soak           30-min endurance.      Runs after load (nightly only).
+#   report         Generate HTML report.  Runs after all test jobs complete.
+#
+# SECRETS required (Settings → Secrets and variables → Actions)
+# ──────────────────────────────────────────────────────────────
+#   STAGING_URL      Full base URL, e.g. https://studynotion-staging.onrender.com/api/v1
+#   PRODUCTION_URL   Full base URL, e.g. https://studynotion-oylf.onrender.com/api/v1
+#   ADMIN_TOKEN      JWT for admin-only endpoints
+#
+# ARTIFACTS produced
+# ──────────────────
+#   k6-summaries/   Raw JSON summaries from every scenario
+#   load-test-report/  Standalone HTML report (download & open in browser)
+#
+# PR COMMENTS
+# ───────────
+#   The report job posts a summary table directly on the PR — no need to
+#   download artifacts to see results.
+# ══════════════════════════════════════════════════════════════════════════
+
+name: Load & Performance Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      # Only re-run when server code or the tests themselves change
+      - 'server/**'
+      - 'load-tests/**'
+      - '.github/workflows/load-tests.yml'
+
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'server/**'
+      - 'load-tests/**'
+      - '.github/workflows/load-tests.yml'
+
+  schedule:
+    # Full nightly suite at 02:00 UTC (after ML retrain at 00:00, ETL at 01:00)
+    - cron: '0 2 * * *'
+
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Which test suite to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - smoke          # just smoke (< 1 min)
+          - load           # smoke + load (10k proof, ~7 min)
+          - full           # all except soak (~15 min)
+          - full-with-soak # everything including 30-min soak (~50 min)
+
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - localhost      # for self-hosted runners with local server
+
+      fail_on_threshold:
+        description: 'Fail the workflow if thresholds are not met'
+        required: false
+        default: 'true'
+        type: boolean
+
+# Cancel any in-progress run on the same branch when a new commit is pushed
+concurrency:
+  group: load-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Default to staging; overridden by workflow_dispatch input or schedule
+  BASE_URL: ${{ secrets.STAGING_URL || 'http://localhost:4000/api/v1' }}
+  NODE_VERSION: '20'
+  K6_VERSION: '0.51.0'
+
+jobs:
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 0 — Resolve environment & suite
+  # Centralises all "which env / which suite" logic so every other job
+  # just reads outputs from this one.
+  # ══════════════════════════════════════════════════════════════════════
+  setup:
+    name: Resolve config
+    runs-on: ubuntu-latest
+    outputs:
+      base_url:       ${{ steps.resolve.outputs.base_url }}
+      run_load:       ${{ steps.resolve.outputs.run_load }}
+      run_stress:     ${{ steps.resolve.outputs.run_stress }}
+      run_spike:      ${{ steps.resolve.outputs.run_spike }}
+      run_critical:   ${{ steps.resolve.outputs.run_critical }}
+      run_soak:       ${{ steps.resolve.outputs.run_soak }}
+      fail_threshold: ${{ steps.resolve.outputs.fail_threshold }}
+      suite_label:    ${{ steps.resolve.outputs.suite_label }}
+
+    steps:
+      - name: Resolve environment and suite
+        id: resolve
+        run: |
+          # ── Determine target URL ────────────────────────────────────
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            ENV="staging"
+          else
+            ENV="staging"   # push / PR always tests staging
+          fi
+
+          case "$ENV" in
+            production) URL="${{ secrets.PRODUCTION_URL }}" ;;
+            staging)    URL="${{ secrets.STAGING_URL }}" ;;
+            *)          URL="http://localhost:4000/api/v1" ;;
+          esac
+
+          # Fallback if secret is not set
+          URL="${URL:-http://localhost:4000/api/v1}"
+          echo "base_url=$URL" >> $GITHUB_OUTPUT
+
+          # ── Determine which jobs to enable ──────────────────────────
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SUITE="${{ github.event.inputs.suite }}"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            SUITE="full"
+          else
+            # push / PR: only smoke + critical paths (fast)
+            SUITE="smoke"
+          fi
+
+          case "$SUITE" in
+            smoke)
+              echo "run_load=false"     >> $GITHUB_OUTPUT
+              echo "run_stress=false"   >> $GITHUB_OUTPUT
+              echo "run_spike=false"    >> $GITHUB_OUTPUT
+              echo "run_critical=false" >> $GITHUB_OUTPUT
+              echo "run_soak=false"     >> $GITHUB_OUTPUT
+              echo "suite_label=Smoke only" >> $GITHUB_OUTPUT
+              ;;
+            load)
+              echo "run_load=true"      >> $GITHUB_OUTPUT
+              echo "run_stress=false"   >> $GITHUB_OUTPUT
+              echo "run_spike=false"    >> $GITHUB_OUTPUT
+              echo "run_critical=false" >> $GITHUB_OUTPUT
+              echo "run_soak=false"     >> $GITHUB_OUTPUT
+              echo "suite_label=Smoke + Load" >> $GITHUB_OUTPUT
+              ;;
+            full)
+              echo "run_load=true"      >> $GITHUB_OUTPUT
+              echo "run_stress=true"    >> $GITHUB_OUTPUT
+              echo "run_spike=true"     >> $GITHUB_OUTPUT
+              echo "run_critical=true"  >> $GITHUB_OUTPUT
+              echo "run_soak=false"     >> $GITHUB_OUTPUT
+              echo "suite_label=Full suite (no soak)" >> $GITHUB_OUTPUT
+              ;;
+            full-with-soak)
+              echo "run_load=true"      >> $GITHUB_OUTPUT
+              echo "run_stress=true"    >> $GITHUB_OUTPUT
+              echo "run_spike=true"     >> $GITHUB_OUTPUT
+              echo "run_critical=true"  >> $GITHUB_OUTPUT
+              echo "run_soak=true"      >> $GITHUB_OUTPUT
+              echo "suite_label=Full suite + soak (50 min)" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+          # push/PR always runs critical paths
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "run_critical=true"  >> $GITHUB_OUTPUT
+          fi
+
+          # Fail threshold
+          FAIL="${{ github.event.inputs.fail_on_threshold || 'true' }}"
+          echo "fail_threshold=$FAIL" >> $GITHUB_OUTPUT
+
+      - name: Print resolved config
+        run: |
+          echo "Base URL : ${{ steps.resolve.outputs.base_url }}"
+          echo "Suite    : ${{ steps.resolve.outputs.suite_label }}"
+          echo "Trigger  : ${{ github.event_name }}"
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 1 — Smoke Test (always runs, gates everything else)
+  # ══════════════════════════════════════════════════════════════════════
+  smoke:
+    name: 🔎 Smoke Test
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Wake server (Render free-tier cold start)
+        run: |
+          BASE="${{ needs.setup.outputs.base_url }}"
+          ROOT="${BASE%/api/v1}"
+          echo "Pinging $ROOT …"
+          curl -sf --retry 5 --retry-delay 10 --retry-connrefused "$ROOT/" || true
+          sleep 10
+
+      - name: Run smoke test
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --summary-export=smoke-summary.json \
+            load-tests/scenarios/01-smoke.js
+
+      - name: Upload smoke summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-smoke-summary
+          path: smoke-summary.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 2 — Load Test (10k/day capacity proof)
+  # ══════════════════════════════════════════════════════════════════════
+  load:
+    name: 📈 Load Test — 10k/day Proof
+    runs-on: ubuntu-latest
+    needs: [ setup, smoke ]
+    if: needs.setup.outputs.run_load == 'true'
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Run load test
+        id: load_run
+        # Exit code 99 = threshold failure in k6; we capture it and decide
+        # whether to fail based on fail_threshold input
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --summary-export=load-summary.json \
+            --out json=load-raw.json \
+            load-tests/scenarios/02-load.js
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Enforce threshold gate
+        if: |
+          steps.load_run.outcome == 'failure' &&
+          needs.setup.outputs.fail_threshold == 'true'
+        run: |
+          echo "❌ Load test thresholds not met. Failing the job."
+          exit 1
+
+      - name: Upload load summaries
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-load-summary
+          path: |
+            load-summary.json
+            load-raw.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 3 — Stress Test (graceful-degradation proof)
+  # ══════════════════════════════════════════════════════════════════════
+  stress:
+    name: 💥 Stress Test — Breaking Point
+    runs-on: ubuntu-latest
+    needs: [ setup, load ]
+    if: needs.setup.outputs.run_stress == 'true'
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Run stress test
+        # Stress intentionally pushes past limits; we allow non-zero exit
+        # but still capture the summary for reporting
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --summary-export=stress-summary.json \
+            load-tests/scenarios/03-stress.js || true
+
+      - name: Upload stress summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-stress-summary
+          path: stress-summary.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 4 — Spike Test (viral surge resilience)
+  # ══════════════════════════════════════════════════════════════════════
+  spike:
+    name: ⚡ Spike Test — Viral Surge
+    runs-on: ubuntu-latest
+    needs: [ setup, smoke ]
+    if: needs.setup.outputs.run_spike == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Run spike test
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --summary-export=spike-summary.json \
+            load-tests/scenarios/04-spike.js
+
+      - name: Upload spike summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-spike-summary
+          path: spike-summary.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 5 — Critical User Journey Tests
+  # ══════════════════════════════════════════════════════════════════════
+  critical-paths:
+    name: 🧭 Critical User Journeys
+    runs-on: ubuntu-latest
+    needs: [ setup, smoke ]
+    if: needs.setup.outputs.run_critical == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Run critical path tests
+        id: journeys
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --summary-export=journeys-summary.json \
+            load-tests/scenarios/06-critical-paths.js
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Enforce threshold gate
+        if: |
+          steps.journeys.outcome == 'failure' &&
+          needs.setup.outputs.fail_threshold == 'true'
+        run: |
+          echo "❌ Critical path thresholds not met."
+          exit 1
+
+      - name: Upload journeys summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-journeys-summary
+          path: journeys-summary.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 6 — Soak Test (nightly / manual only, 30 min)
+  # ══════════════════════════════════════════════════════════════════════
+  soak:
+    name: 🛁 Soak Test — Endurance (30 min)
+    runs-on: ubuntu-latest
+    needs: [ setup, load ]
+    if: needs.setup.outputs.run_soak == 'true'
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq && sudo apt-get install -y k6=${{ env.K6_VERSION }}
+
+      - name: Run soak test
+        run: |
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.base_url }} \
+            --env SOAK_DURATION=30m \
+            --summary-export=soak-summary.json \
+            load-tests/scenarios/05-soak.js
+
+      - name: Upload soak summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-soak-summary
+          path: soak-summary.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JOB 7 — Generate HTML Report + PR Comment
+  # Runs after all test jobs complete (pass or fail)
+  # ══════════════════════════════════════════════════════════════════════
+  report:
+    name: 📊 Generate Report & Comment
+    runs-on: ubuntu-latest
+    needs: [ setup, smoke, load, stress, spike, critical-paths, soak ]
+    # Always run even if some test jobs were skipped or failed
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Download whichever summaries were actually produced
+      - name: Download all k6 summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: k6-*-summary
+          path: downloaded-summaries
+          merge-multiple: true
+        continue-on-error: true  # some jobs may have been skipped
+
+      - name: Merge summaries & generate HTML report
+        id: gen_report
+        run: |
+          mkdir -p load-tests/reports
+
+          # Find the most important summary for the main report (load > smoke)
+          if   [ -f downloaded-summaries/load-summary.json ];     then MAIN=downloaded-summaries/load-summary.json
+          elif [ -f downloaded-summaries/smoke-summary.json ];    then MAIN=downloaded-summaries/smoke-summary.json
+          elif [ -f downloaded-summaries/journeys-summary.json ]; then MAIN=downloaded-summaries/journeys-summary.json
+          else
+            echo "No summaries found — creating placeholder"
+            echo '{"metrics":{}}' > placeholder.json
+            MAIN=placeholder.json
+          fi
+
+          node load-tests/reports/generate-report.js "$MAIN" load-tests/reports/report.html
+          echo "report_path=load-tests/reports/report.html" >> $GITHUB_OUTPUT
+
+          # Extract headline numbers for the PR comment
+          REQS=$(node -e "
+            const s = require('$MAIN');
+            const m = s.metrics || {};
+            console.log(Math.round(m.http_reqs?.values?.count || 0));
+          " 2>/dev/null || echo "N/A")
+
+          RATE=$(node -e "
+            const s = require('$MAIN');
+            const m = s.metrics || {};
+            const r = m.http_reqs?.values?.rate;
+            console.log(r ? r.toFixed(1) : 'N/A');
+          " 2>/dev/null || echo "N/A")
+
+          P95=$(node -e "
+            const s = require('$MAIN');
+            const m = s.metrics || {};
+            const v = m.http_req_duration?.values?.['p(95)'];
+            console.log(v ? Math.round(v) + ' ms' : 'N/A');
+          " 2>/dev/null || echo "N/A")
+
+          ERRRATE=$(node -e "
+            const s = require('$MAIN');
+            const m = s.metrics || {};
+            const r = m.http_req_failed?.values?.rate;
+            console.log(r !== undefined ? (r*100).toFixed(2)+'%' : 'N/A');
+          " 2>/dev/null || echo "N/A")
+
+          DAILY=$(node -e "
+            const s = require('$MAIN');
+            const m = s.metrics || {};
+            const r = m.http_reqs?.values?.rate;
+            console.log(r ? Math.round(r*86400).toLocaleString() : 'N/A');
+          " 2>/dev/null || echo "N/A")
+
+          echo "total_reqs=$REQS"   >> $GITHUB_OUTPUT
+          echo "req_rate=$RATE"     >> $GITHUB_OUTPUT
+          echo "p95=$P95"           >> $GITHUB_OUTPUT
+          echo "err_rate=$ERRRATE"  >> $GITHUB_OUTPUT
+          echo "daily_cap=$DAILY"   >> $GITHUB_OUTPUT
+
+      - name: Upload HTML report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-report
+          path: load-tests/reports/report.html
+          retention-days: 90   # keep stakeholder reports for 3 months
+
+      # ── Post results as a PR comment ─────────────────────────────────
+      - name: Post results to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const smoke    = '${{ needs.smoke.result }}';
+            const load     = '${{ needs.load.result }}';
+            const critical = '${{ needs.critical-paths.result }}';
+            const stress   = '${{ needs.stress.result }}';
+            const spike    = '${{ needs.spike.result }}';
+            const soak     = '${{ needs.soak.result }}';
+
+            const icon = (r) => ({
+              success: '✅', failure: '❌', skipped: '⏭️', cancelled: '🚫'
+            }[r] || '⚪');
+
+            const target  = '${{ needs.setup.outputs.base_url }}';
+            const suite   = '${{ needs.setup.outputs.suite_label }}';
+            const rate    = '${{ steps.gen_report.outputs.req_rate }}';
+            const daily   = '${{ steps.gen_report.outputs.daily_cap }}';
+            const p95     = '${{ steps.gen_report.outputs.p95 }}';
+            const errRate = '${{ steps.gen_report.outputs.err_rate }}';
+            const reqs    = '${{ steps.gen_report.outputs.total_reqs }}';
+
+            const capacityOk = !isNaN(parseFloat(rate)) && parseFloat(rate) >= 12;
+
+            const body = [
+              '## 📊 Load Test Results',
+              '',
+              `**Suite:** ${suite} &nbsp;|&nbsp; **Target:** \`${target}\``,
+              '',
+              '### Key Metrics',
+              '',
+              '| Metric | Value | Target | Status |',
+              '|--------|-------|--------|--------|',
+              `| Throughput | ${rate} req/s | ≥ 12 req/s | ${capacityOk ? '✅' : '❌'} |`,
+              `| Daily capacity (extrapolated) | ${daily} req/day | ≥ 10,000 | ${capacityOk ? '✅' : '❌'} |`,
+              `| p95 Latency | ${p95} | < 800 ms | ${p95 !== 'N/A' && parseInt(p95) < 800 ? '✅' : '❌'} |`,
+              `| Error Rate | ${errRate} | < 1% | ${errRate !== 'N/A' && parseFloat(errRate) < 1 ? '✅' : '❌'} |`,
+              `| Total Requests | ${reqs} | — | — |`,
+              '',
+              '### Job Results',
+              '',
+              '| Job | Result |',
+              '|-----|--------|',
+              `| 🔎 Smoke | ${icon(smoke)} ${smoke} |`,
+              `| 📈 Load (10k/day proof) | ${icon(load)} ${load} |`,
+              `| 🧭 Critical Paths | ${icon(critical)} ${critical} |`,
+              `| 💥 Stress | ${icon(stress)} ${stress} |`,
+              `| ⚡ Spike | ${icon(spike)} ${spike} |`,
+              `| 🛁 Soak | ${icon(soak)} ${soak} |`,
+              '',
+              '> 📄 Full HTML report is attached as a workflow artifact — download **`load-test-report`** from the Actions run to view it in your browser.',
+              '',
+              `_Run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · ${{ github.sha }}_`,
+            ].join('\n');
+
+            // Find existing comment to update (avoid duplicates)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.startsWith('## 📊 Load Test Results')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner:      context.repo.owner,
+                repo:       context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      # ── Post results as commit status ────────────────────────────────
+      - name: Set commit status
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const smoke    = '${{ needs.smoke.result }}';
+            const load     = '${{ needs.load.result }}';
+            const critical = '${{ needs.critical-paths.result }}';
+            const allPassed = [smoke, load, critical]
+              .filter(r => r !== 'skipped')
+              .every(r => r === 'success');
+
+            await github.rest.repos.createCommitStatus({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              sha:         context.sha,
+              state:       allPassed ? 'success' : 'failure',
+              target_url:  `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`,
+              description: allPassed
+                ? '✅ All load tests passed'
+                : '❌ Load test thresholds not met',
+              context:     'Load Tests / Performance',
+            });
+
+      # ── Notify on nightly failure ─────────────────────────────────────
+      - name: Summarise nightly results in job summary
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "## 📊 StudyNotion Load Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔎 Smoke         | ${{ needs.smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📈 Load          | ${{ needs.load.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 💥 Stress        | ${{ needs.stress.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚡ Spike          | ${{ needs.spike.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧭 Critical Paths| ${{ needs.critical-paths.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🛁 Soak          | ${{ needs.soak.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Throughput:** ${{ steps.gen_report.outputs.req_rate }} req/s  " >> $GITHUB_STEP_SUMMARY
+          echo "**Daily capacity:** ${{ steps.gen_report.outputs.daily_cap }} req/day  " >> $GITHUB_STEP_SUMMARY
+          echo "**p95 latency:** ${{ steps.gen_report.outputs.p95 }}  " >> $GITHUB_STEP_SUMMARY
+          echo "**Error rate:** ${{ steps.gen_report.outputs.err_rate }}  " >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Download the **load-test-report** artifact to open the full HTML report." >> $GITHUB_STEP_SUMMARY
