@@ -103,3 +103,17 @@ export const searchEndpoints = {
   COURSE_SEARCH_API: BASE_URL + "/course/searchCourse",
   INSTRUCTOR_SEARCH_API: BASE_URL + "/course/instructorDetails",
 }
+
+
+// DATA ENGINEERING PIPELINE ENDPOINTS
+export const pipelineEndpoints = {
+  PIPELINE_EVENT_API:      BASE_URL + "/pipeline/event",
+  PIPELINE_EVENTS_API:     BASE_URL + "/pipeline/events",
+  PIPELINE_SUMMARY_API:    BASE_URL + "/pipeline/summary",
+  PIPELINE_FUNNEL_API:     BASE_URL + "/pipeline/funnel",
+  PIPELINE_RETENTION_API:  BASE_URL + "/pipeline/retention",
+  PIPELINE_AGGREGATE_API:  BASE_URL + "/pipeline/aggregate",
+}
+
+// Convenience re-export used by analytics.js
+export const PIPELINE_EVENT_API = BASE_URL + "/pipeline/events";
