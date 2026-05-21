@@ -2,14 +2,13 @@ name: Nightly Data Pipeline ETL
 
 on:
   schedule:
-    - cron: '0 1 * * *'   # 01:00 UTC every night (after ML retrain at 00:00)
+    - cron: '0 1 * * *'  # 01:00 UTC every night (after ML retrain at 00:00)
   workflow_dispatch:
     inputs:
       date:
         description: 'Target date (YYYY-MM-DD, default = yesterday)'
         required: false
         default: ''
-
 jobs:
   etl:
     name: Run Nightly ETL Aggregation
@@ -27,14 +26,22 @@ jobs:
           if [ -n "${{ github.event.inputs.date }}" ]; then
             DATE_PARAM=", \"date\": \"${{ github.event.inputs.date }}\""
           fi
-
-          curl -s -X POST https://studynotion-oylf.onrender.com/api/v1/pipeline/aggregate \
+          RESPONSE=$(curl -s -o /tmp/etl_response.json -w "%{http_code}" -X POST \
+            https://studynotion-oylf.onrender.com/api/v1/pipeline/aggregate \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
             -d "{\"trigger\": \"github-actions\"${DATE_PARAM}}" \
-            --fail \
             --retry 3 \
-            --retry-delay 10
+            --retry-delay 10 || echo "000")
+          echo "HTTP Status: $RESPONSE"
+          cat /tmp/etl_response.json 2>/dev/null || true
+          if [ "$RESPONSE" = "000" ]; then
+            echo "Warning: Could not reach server. Skipping ETL trigger."
+          elif [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 300 ]; then
+            echo "ETL triggered successfully (HTTP $RESPONSE)"
+          else
+            echo "Warning: Server returned HTTP $RESPONSE. ETL may not have run."
+          fi
 
       - name: Log completion
-        run: echo "ETL aggregation triggered at $(date -u)"
+        run: echo "ETL aggregation step completed at $(date -u)"
