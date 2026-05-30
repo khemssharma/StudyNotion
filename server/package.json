@@ -33,7 +33,9 @@
     "nodemon": "^2.0.22",
     "openai": "^4.47.1",
     "otp-generator": "^4.0.1",
-    "razorpay": "^2.8.6"
+    "razorpay": "^2.8.6",
+    "rate-limit-redis": "^4.2.0",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
