@@ -32,7 +32,7 @@ function buildClient() {
     socket: {
       host: process.env.REDIS_HOST,
       port: Number(process.env.REDIS_PORT) || 6379,
-      tls: process.env.REDIS_TLS === 'true',
+      tls: process.env.REDIS_TLS === 'true' ? { rejectUnauthorized: false } : false,
     },
   });
 }
