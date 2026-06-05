@@ -85,7 +85,7 @@ on:
       fail_on_threshold:
         description: 'Fail the workflow if thresholds are not met'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 # Cancel any in-progress run on the same branch when a new commit is pushed
