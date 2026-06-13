@@ -9,6 +9,9 @@ const {
   editCourse,
   deleteCourse,
   getInstructorCourses,
+  searchCourse,
+  getSearchSuggestions,
+  instructorDetails,
 } = require("../controllers/Course");
 
 const {
@@ -54,6 +57,11 @@ const {
 // ── Recommendations ───────────────────────────────────────────────────────────
 // Works for guests (no token) and logged-in students (personalised)
 router.get("/recommendations", optionalAuth, getRecommendations);
+
+// ── Search ────────────────────────────────────────────────────────────────────
+router.get("/searchSuggestions", getSearchSuggestions);
+router.get("/searchCourse", searchCourse);
+router.get("/instructorDetails/:instructorId", instructorDetails);
 
 // Content-similar courses – shown on the course detail page
 router.get("/:courseId/similar", getSimilarCourses);

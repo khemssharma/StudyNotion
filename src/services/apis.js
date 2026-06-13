@@ -101,6 +101,7 @@ export const mlEndpoints = {
 // SEARCH API
 export const searchEndpoints = {
   COURSE_SEARCH_API: BASE_URL + "/course/searchCourse",
+  SEARCH_SUGGESTIONS_API: BASE_URL + "/course/searchSuggestions",
   INSTRUCTOR_SEARCH_API: BASE_URL + "/course/instructorDetails",
 }
 

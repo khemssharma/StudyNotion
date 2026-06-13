@@ -55,6 +55,7 @@ const aiRoutes        = require("./routes/AI");
 // ── Infrastructure ────────────────────────────────────────────────────
 const database           = require("./config/database");
 const { cloudinaryConnect } = require("./config/cloudinary");
+const searchIndex        = require("./services/searchIndex");
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -100,7 +101,15 @@ if (process.env.NODE_ENV !== "test") {
   const mongoose = require("mongoose");
   mongoose
     .connect(process.env.MONGODB_URL, mongooseOptions)
-    .then(() => console.log("DB Connected Successfully"))
+    .then(async () => {
+      console.log("DB Connected Successfully");
+      try {
+        const count = await searchIndex.rebuild();
+        console.log(`[SearchIndex] Indexed ${count} published courses`);
+      } catch (err) {
+        console.error("[SearchIndex] Initial build failed:", err.message);
+      }
+    })
     .catch((err) => {
       console.error("DB Connection Failed:", err);
       process.exit(1);
