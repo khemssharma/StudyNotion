@@ -6,6 +6,13 @@ const User = require("../models/User")
 const { uploadImageToCloudinary } = require("../utils/imageUploader")
 const CourseProgress = require("../models/CourseProgress")
 const { convertSecondsToDuration } = require("../utils/secToDuration")
+const searchIndex = require("../services/searchIndex")
+
+const refreshSearchIndex = () => {
+  searchIndex.rebuild().catch((err) => {
+    console.error("[SearchIndex] Rebuild failed:", err.message)
+  })
+}
 // Function to create a new course
 exports.createCourse = async (req, res) => {
   try {
@@ -115,6 +122,7 @@ exports.createCourse = async (req, res) => {
       { new: true }
     )
     console.log("HEREEEEEEEE", categoryDetails2)
+    refreshSearchIndex()
     // Return the new course and a success message
     res.status(200).json({
       success: true,
@@ -185,6 +193,7 @@ exports.editCourse = async (req, res) => {
       })
       .exec()
 
+    refreshSearchIndex()
     res.json({
       success: true,
       message: "Course updated successfully",
@@ -477,6 +486,7 @@ exports.deleteCourse = async (req, res) => {
     // Delete the course
     await Course.findByIdAndDelete(courseId)
 
+    refreshSearchIndex()
     return res.status(200).json({
       success: true,
       message: "Course deleted successfully",
@@ -490,6 +500,36 @@ exports.deleteCourse = async (req, res) => {
     })
   }
 }
+
+// Trie-backed search auto-suggestions
+exports.getSearchSuggestions = async (req, res) => {
+  try {
+    const { query, limit } = req.query;
+    const trimmedQuery = (query || "").trim();
+
+    if (!trimmedQuery) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const maxResults = Math.min(parseInt(limit, 10) || 8, 20);
+    const suggestions = searchIndex.getSuggestions(trimmedQuery, maxResults);
+
+    return res.status(200).json({
+      success: true,
+      data: suggestions,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch search suggestions",
+      error: error.message,
+    });
+  }
+};
 
 // Search Courses by query (including instructor name)
 exports.searchCourse = async (req, res) => {

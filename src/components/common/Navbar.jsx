@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { AiOutlineShoppingCart } from "react-icons/ai"
 import { IoMdMore } from "react-icons/io";
 import { RxCross1 } from "react-icons/rx";
@@ -12,8 +12,8 @@ import { apiConnector } from "../../services/apiconnector"
 import { categories } from "../../services/apis"
 import { ACCOUNT_TYPE } from "../../utils/constants"
 import ProfileDropdown from "../core/Auth/ProfileDropDown"
-import { useNavigate } from "react-router-dom";
-import { searchEndpoints } from "../../services/apis"
+import SearchBar from "./SearchBar"
+import useOnClickOutside from "../../hooks/useOnClickOutside"
 
 function Navbar() {
   const { token } = useSelector((state) => state.auth)
@@ -26,29 +26,25 @@ function Navbar() {
 
   // Search bar state
   const [searchQuery, setSearchQuery] = useState("");
-  const navigate = useNavigate();
-  
-  // Handle search submit
-  const handleSearchSubmit = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    try {
-      const res = await apiConnector(
-        "GET", 
-        searchEndpoints.COURSE_SEARCH_API + `?query=${encodeURIComponent(searchQuery)}`
-      );
-
-      console.log("Search results:", res.data);
-      navigate(`/search/${encodeURIComponent(searchQuery)}`);
-    } catch (error) {
-      console.error("Search failed:", error);
-    }
-  };
   const [showSearch, setShowSearch] = useState(false);
+
+  const closeSearch = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery("");
+  }, []);
 
   // refs for search inputs (desktop & mobile)
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
+  const desktopSearchContainerRef = useRef(null);
+  const mobileSearchContainerRef = useRef(null);
+
+  useOnClickOutside(desktopSearchContainerRef, () => {
+    if (showSearch) closeSearch();
+  });
+  useOnClickOutside(mobileSearchContainerRef, () => {
+    if (showSearch) closeSearch();
+  });
 
   // helper to detect visible element
   const isElementVisible = (el) => {
@@ -179,7 +175,7 @@ function Navbar() {
         {/* Login / Signup / Dashboard */}
           <div className="hidden items-center gap-x-4 md:flex">
             {/* Search Icon and Search Bar */}
-            <div className="relative">
+            <div className="relative" ref={desktopSearchContainerRef}>
               <button
                 className="p-2"
                 onClick={toggleSearch}
@@ -203,17 +199,12 @@ function Navbar() {
               : "opacity-0 invisible -translate-y-2"
                 }`}
               >
-            <form onSubmit={handleSearchSubmit}>
-              <input
-                type="text"
-                className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
-                placeholder="Search courses..."
-                ref={desktopSearchRef}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => setShowSearch(false)}
-              />
-            </form>
+            <SearchBar
+              ref={desktopSearchRef}
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onClose={closeSearch}
+            />
               </div>
             </div>
             {user && user?.accountType !== ACCOUNT_TYPE.INSTRUCTOR && (
@@ -257,7 +248,7 @@ function Navbar() {
               )}
             </Link>
           )}
-            <div className="relative">
+            <div className="relative" ref={mobileSearchContainerRef}>
               <button
                 className="p-2"
                 onClick={toggleSearch}
@@ -281,17 +272,12 @@ function Navbar() {
                 : "opacity-0 invisible -translate-y-2"
                 }`}
               >
-                <form onSubmit={handleSearchSubmit}>
-                <input
-                  type="text"
-                  className="w-full rounded-md border border-richblack-700 bg-richblack-800 px-3 py-2 text-richblack-100 focus:outline-none focus:ring-2 focus:ring-yellow-50"
-                  placeholder="Search courses..."
+                <SearchBar
                   ref={mobileSearchRef}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onBlur={() => setShowSearch(false)}
+                  onChange={setSearchQuery}
+                  onClose={closeSearch}
                 />
-                </form>
               </div>
             </div>
           <button className="md:hidden" onClick={() => setOpen(!open)}>
