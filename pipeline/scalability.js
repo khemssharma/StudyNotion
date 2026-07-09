@@ -59,11 +59,39 @@ const helmetMiddleware = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc:     ["'self'", 'data:', 'https://res.cloudinary.com'],
-      scriptSrc:  ["'self'", "'unsafe-inline'"],
-      styleSrc:   ["'self'", "'unsafe-inline'"],
-      connectSrc: ["'self'", 'https://api.openrouter.ai'],
-      frameSrc:   ["'none'"],
+      imgSrc: [
+        "'self'",
+        'data:',
+        'https://res.cloudinary.com',
+        'https://api.dicebear.com', // default avatar generator used throughout the UI
+      ],
+      // 'script-src-elem' falls back to 'script-src' when unset, per the browser
+      // warning — setting both explicitly avoids relying on that fallback.
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://accounts.google.com',     // Google Identity Services (Google login button)
+        'https://checkout.razorpay.com',   // Razorpay checkout.js, loaded dynamically at payment time
+      ],
+      scriptSrcElem: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://accounts.google.com',
+        'https://checkout.razorpay.com',
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: [
+        "'self'",
+        'https://api.openrouter.ai',
+        'https://api.razorpay.com',        // Razorpay order/payment verification calls
+        'https://lumberjack.razorpay.com', // Razorpay SDK's own analytics beacon
+      ],
+      // Google's sign-in flow and Razorpay's payment modal both render in an iframe.
+      frameSrc: [
+        'https://accounts.google.com',
+        'https://api.razorpay.com',
+        'https://checkout.razorpay.com',
+      ],
     },
   },
   crossOriginEmbedderPolicy: false,
