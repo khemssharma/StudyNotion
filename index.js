@@ -13,6 +13,7 @@
  */
 
 const express        = require("express");
+const path           = require("path");
 const cookieParser   = require("cookie-parser");
 const cors           = require("cors");
 const fileUpload     = require("express-fileupload");
@@ -153,9 +154,35 @@ app.use("/api/v1/pipeline", pipelineRoutes);
 // ──────────────────────────────────────────────────────────────────────────
 // 8. Health check
 // ──────────────────────────────────────────────────────────────────────────
-app.get("/", (req, res) =>
+// Moved off "/" so the root path is free to serve the React app below.
+// Render's default health check accepts any 2xx response, so serving
+// index.html at "/" satisfies it too — this route is for explicit pings.
+app.get("/api/v1/health", (req, res) =>
   res.json({ success: true, message: "StudyNotion server is running." })
 );
+
+// ──────────────────────────────────────────────────────────────────────────
+// 8b. Serve the built React app (ui/build) — single-server deployment
+// ──────────────────────────────────────────────────────────────────────────
+const uiBuildPath = path.join(__dirname, "ui", "build");
+
+if (!require("fs").existsSync(path.join(uiBuildPath, "index.html"))) {
+  console.warn(
+    "⚠ ui/build not found — run `npm run build` (or `npm install --prefix ui && npm run build --prefix ui`) first."
+  );
+}
+
+app.use(express.static(uiBuildPath));
+
+// SPA fallback: anything not already matched above and not an /api/* route
+// gets index.html so React Router can handle client-side routing. Must be
+// registered LAST — after every API route — so API paths are never swallowed.
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ success: false, message: `Route '${req.path}' not found` });
+  }
+  res.sendFile(path.join(uiBuildPath, "index.html"));
+});
 
 // ──────────────────────────────────────────────────────────────────────────
 // 9. Nightly ETL cron (runs at 01:00 UTC every day)
