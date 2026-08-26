@@ -1,4 +1,4 @@
-# StudyNotion Online Education Platform (MERN App) [Website Link](https://studynotion-six-pied.vercel.app/)
+# StudyNotion Online Education Platform (MERN App) [edtech.ayushweb.online](https://edtech.ayushweb.online/)
 
 ![Main Page](images/mainpage.png)
 
