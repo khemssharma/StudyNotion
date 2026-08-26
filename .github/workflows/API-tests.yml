@@ -22,18 +22,16 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Cache server node modules
+      - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: server/node_modules
-          key: ${{ runner.os }}-server-${{ hashFiles('server/package-lock.json') }}
+          path: node_modules
+          key: ${{ runner.os }}-server-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-server-
 
-      - name: Install server dependencies
-        working-directory: ./server
+      - name: Install dependencies
         run: npm ci
 
       - name: Run server tests
-        working-directory: ./server
         run: npm test
