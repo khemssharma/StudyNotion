@@ -1,5 +1,10 @@
 name: Server API tests
 
+# Gates the Server API tests check on every push/PR to main.
+# The Express backend lives at the repo root (moved out of server/ during
+# the backend-focused restructure) - run these steps from repo root, not
+# a server/ subdirectory.
+
 on:
   push:
     branches: [ main ]
