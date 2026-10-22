@@ -23,7 +23,7 @@
 # SECRETS required (Settings → Secrets and variables → Actions)
 # ──────────────────────────────────────────────────────────────
 #   STAGING_URL      Full base URL, e.g. https://studynotion-staging.onrender.com/api/v1
-#   PRODUCTION_URL   Full base URL, e.g. https://studynotion-oylf.onrender.com/api/v1
+#   PRODUCTION_URL   Full base URL, e.g. https://studynotion-1-tgdh.onrender.com/api/v1
 #   ADMIN_TOKEN      JWT for admin-only endpoints
 #
 # ARTIFACTS produced

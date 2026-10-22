@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wake server (cold-start on free tier)
-        run: curl -s https://studynotion-oylf.onrender.com || true
+        run: curl -s https://studynotion-1-tgdh.onrender.com || true
 
       - name: Wait for server to be ready
         run: sleep 15
@@ -27,7 +27,7 @@ jobs:
             DATE_PARAM=", \"date\": \"${{ github.event.inputs.date }}\""
           fi
           RESPONSE=$(curl -s -o /tmp/etl_response.json -w "%{http_code}" -X POST \
-            https://studynotion-oylf.onrender.com/api/v1/pipeline/aggregate \
+            https://studynotion-1-tgdh.onrender.com/api/v1/pipeline/aggregate \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
             -d "{\"trigger\": \"github-actions\"${DATE_PARAM}}" \
