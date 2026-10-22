@@ -18,7 +18,7 @@ jobs:
       - name: Trigger model retraining via Node.js API
         run: |
           RESPONSE=$(curl -s -o /tmp/ml_response.json -w "%{http_code}" -X POST \
-            https://studynotion-oylf.onrender.com/api/v1/course/recommendations/train \
+            https://studynotion-1-tgdh.onrender.com/api/v1/course/recommendations/train \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
             --retry 3 \

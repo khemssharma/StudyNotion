@@ -7,7 +7,7 @@ jobs:
     steps:
       - name: Ping Render API
         run: |
-          curl -s https://studynotion-oylf.onrender.com || true
+          curl -s https://studynotion-1-tgdh.onrender.com || true
 
       - name: Ping Render API 2
         run: |

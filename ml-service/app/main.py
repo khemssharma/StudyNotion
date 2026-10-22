@@ -90,8 +90,22 @@ def recommend():
     recs = recommender.recommend(user_id, enrolled, courses, limit)
     elapsed = round((time.time() - t0) * 1000, 1)
 
-    logger.info("recommend user=%s recs=%d elapsed=%sms", user_id, len(recs), elapsed)
+    # True only when the NCF model actually knows this user (otherwise the
+    # result is a generic popularity fallback and the caller should prefer
+    # its own content-based personalisation).
+    personalised = bool(recommender.is_ready and user_id in recommender.user_id_map)
+
+    logger.info("recommend user=%s recs=%d personalised=%s elapsed=%sms",
+                user_id, len(recs), personalised, elapsed)
+    n = max(len(recs), 1)
     return jsonify({
+        # contract expected by controllers/Recommend.js
+        "recommended": [
+            {"courseId": str(c.get("_id")), "score": round(1 - i / n, 4)}
+            for i, c in enumerate(recs)
+        ],
+        "personalised": personalised,
+        # kept for backwards compatibility
         "recommendations": recs,
         "count": len(recs),
         "model": "ncf" if recommender.is_ready else "popularity-fallback",
