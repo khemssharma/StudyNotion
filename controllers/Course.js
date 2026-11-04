@@ -8,6 +8,12 @@ const CourseProgress = require("../models/CourseProgress")
 const { convertSecondsToDuration } = require("../utils/secToDuration")
 const searchIndex = require("../services/searchIndex")
 
+// Fields of an instructor that course responses may include. Never populate the whole User document into a
+// response: it holds the password hash, the password-reset token and expiry, the email address, enrolled
+// courses and progress. Profile documents also hold the date of birth and contact number.
+const PUBLIC_INSTRUCTOR_FIELDS = "firstName lastName image additionalDetails"
+const PUBLIC_PROFILE_FIELDS = "about"
+
 const refreshSearchIndex = () => {
   searchIndex.rebuild().catch((err) => {
     console.error("[SearchIndex] Rebuild failed:", err.message)
@@ -179,8 +185,10 @@ exports.editCourse = async (req, res) => {
     })
       .populate({
         path: "instructor",
+        select: PUBLIC_INSTRUCTOR_FIELDS,
         populate: {
           path: "additionalDetails",
+          select: PUBLIC_PROFILE_FIELDS,
         },
       })
       .populate("category")
@@ -222,7 +230,7 @@ exports.getAllCourses = async (req, res) => {
         studentsEnrolled: true,
       }
     )
-      .populate("instructor")
+      .populate("instructor", PUBLIC_INSTRUCTOR_FIELDS)
       .exec()
 
     return res.status(200).json({
@@ -298,8 +306,10 @@ exports.getCourseDetails = async (req, res) => {
     })
       .populate({
         path: "instructor",
+        select: PUBLIC_INSTRUCTOR_FIELDS,
         populate: {
           path: "additionalDetails",
+          select: PUBLIC_PROFILE_FIELDS,
         },
       })
       .populate("category")
@@ -360,8 +370,10 @@ exports.getFullCourseDetails = async (req, res) => {
     })
       .populate({
         path: "instructor",
+        select: PUBLIC_INSTRUCTOR_FIELDS,
         populate: {
           path: "additionalDetails",
+          select: PUBLIC_PROFILE_FIELDS,
         },
       })
       .populate("category")
@@ -610,8 +622,10 @@ exports.instructorDetails = async (req, res) => {
     const CourseModel = require("../models/Course");
 
     // Find instructor profile
+    // email is shown on the public instructor page; everything else on the User document stays private
     const instructor = await UserModel.findById(instructorId)
-      .populate("additionalDetails")
+      .select(`${PUBLIC_INSTRUCTOR_FIELDS} email accountType`)
+      .populate("additionalDetails", PUBLIC_PROFILE_FIELDS)
       .lean();
     if (!instructor || instructor.accountType !== "Instructor") {
       return res.status(404).json({
